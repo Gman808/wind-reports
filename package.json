@@ -1,0 +1,7 @@
+{
+  "name": "hudson-weather",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node weather.mjs", "send": "node weather.mjs --send" },
+  "dependencies": { "nodemailer": "^6.9.16" }
+}
