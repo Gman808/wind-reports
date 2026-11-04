@@ -294,6 +294,10 @@ console.log(text);
 // only send when it's actually 6am/5pm in Hudson (or when forced).
 const scheduled = process.env.GITHUB_EVENT_NAME === "schedule";
 if (process.argv.includes("--send") || (scheduled && SEND_HOURS.includes(localHour))) {
-  await sendEmail(text, localHour);
-  console.log("Email sent.");
+  if (process.env.SMTP_USER && process.env.SMTP_PASS && process.env.EMAIL_TO) {
+    await sendEmail(text, localHour);
+    console.log("Email sent.");
+  } else {
+    console.log("Email skipped: SMTP_USER, SMTP_PASS and EMAIL_TO are not all set.");
+  }
 }
