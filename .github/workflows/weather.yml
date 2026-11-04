@@ -33,7 +33,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          TEMPEST_TOKEN: ${{ secrets.TEMPEST_TOKEN }}
+          TEMPEST_TOKEN: ${{ secrets.CVL_2 }}
         run: node weather.mjs ${{ inputs.send && '--send' || '' }}
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }
