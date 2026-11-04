@@ -1,6 +1,7 @@
 // Fetch Hudson, QC weather (Open-Meteo), build a static page, and email a summary.
 import { mkdir, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
+import { lastHours, loadHudsonLog, pastEccc, pastTempest, recordHudson } from "./history.mjs";
 
 const LAT = 45.4547, LON = -74.1503;
 const TZ = "America/Toronto";
@@ -234,19 +235,35 @@ function hourlyRows({ current, hourly: h }) {
   });
 }
 
+const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "Direction"];
+const hourFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const orNa = (v, fn) => (v == null ? "n/a" : fn(v));
+
+// Past readings as strings, newest first; all wind in knots.
+function pastTableRows(rows) {
+  return rows.map((r) => [
+    hourFormat.format(new Date(r.t)).replace(",", ""),
+    orNa(r.temp, (v) => `${Number(v).toFixed(1)}°C`),
+    orNa(r.wind, (v) => `${kn(v)} kn`),
+    orNa(r.gust, (v) => `${kn(v)} kn`),
+    orNa(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`),
+  ]);
+}
+
 // Plain-text version for the email.
 function summarize(data, station, club, eccc) {
   const bullets = (rows) => rows.map(([k, v]) => `• ${k}: ${v}`);
-  const lines = ["Current Conditions – Hudson, Quebec", ...bullets(currentRows(data.current, station)), "",
+  const lines = ["Current Conditions – Hudson", ...bullets(currentRows(data.current, station)), "",
     "Current Conditions – Pointe-aux-Anglais", ...bullets(clubRows(club)), "",
     "Current Conditions – Sainte-Anne-de-Bellevue", ...bullets(ecccRows(eccc)), "", "Five Day Forecast"];
   for (const r of forecastRows(data)) lines.push(`• ${r[0]}: ${r[1]}, ${r[2]}, precip ${r[3]}, wind ${r[4]} gusting ${r[5]}`);
   return lines.join("\n");
 }
 
-async function buildSite(data, station, club, eccc, now) {
+async function buildSite(data, station, club, eccc, past, now) {
   await mkdir(OUT, { recursive: true });
   await writeFile(new URL("data.json", OUT), JSON.stringify(data));
+  await writeFile(new URL("hudson-history.json", OUT), JSON.stringify(past.hudsonLog));
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
   const e = escapeHtml;
   const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
@@ -254,18 +271,24 @@ async function buildSite(data, station, club, eccc, now) {
     rows.map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const head = FORECAST_HEAD.map((h) => `<th>${e(h)}</th>`).join("");
   const body = forecastRows(data).map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("");
+const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
+    rows?.length ? table(PAST_HEAD, pastTableRows(rows)) : `<p><small>${e(empty)}</small></p>`}`;
   await writeFile(new URL("index.html", OUT), `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hudson, QC Weather</title>
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5}
-h1{margin-bottom:0}h2{margin-top:1.5rem}h2.sub{margin:0 0 .25rem;font-size:1.1rem;font-weight:500}ul{background:#f2f5f8;padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
+h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:#f2f5f8;padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
 .scroll{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid #d5dbe1;white-space:nowrap}
 th{background:#f2f5f8}small{color:#666}
 @media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th{background:#1f262d}td,th{border-color:#333b44}small{color:#999}}</style>
-</head><body><h1>Current Conditions</h1><h2 class="sub">Hudson, Quebec</h2><small>Last updated ${e(stamp)} (Eastern)</small>
-${list(currentRows(data.current, station))}
+</head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern)</small>
+<h2>Hudson</h2>${list(currentRows(data.current, station))}
 <h2>Pointe-aux-Anglais</h2>${list(clubRows(club))}
 <h2>Sainte-Anne-de-Bellevue</h2>${list(ecccRows(eccc))}
+<h2>Past 24 Hours</h2>
+${pastSection("Hudson", past.hudson, "History is still building: Hudson's station keeps no record, so each update adds one reading here.")}
+${pastSection("Pointe-aux-Anglais", past.club, "Past data unavailable right now.")}
+${pastSection("Sainte-Anne-de-Bellevue", past.eccc, "Past data unavailable right now.")}
 <h2>Hourly Wind Forecast</h2>${table(HOURLY_HEAD, hourlyRows(data))}
 <h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
 </body></html>`);
@@ -286,8 +309,14 @@ async function sendEmail(text, hour) {
 const now = new Date();
 const localHour = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now));
 const [data, station, club, eccc] = await Promise.all([fetchWeather(), fetchStation(), fetchTempest().then((t) => t ?? fetchClub()), fetchEccc()]);
+const nowMs = now.getTime();
+const [hudsonLog, pastClub, pastSte] = await Promise.all([
+  loadHudsonLog(OUT), pastTempest(process.env.TEMPEST_TOKEN, nowMs), pastEccc(ECCC_STATION, nowMs),
+]);
+const hudsonAll = recordHudson(hudsonLog, station, nowMs);
+const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte };
 const text = summarize(data, station, club, eccc);
-await buildSite(data, station, club, eccc, now);
+await buildSite(data, station, club, eccc, past, now);
 console.log(text);
 
 // GitHub cron is UTC, so the workflow fires at both DST and non-DST hours;

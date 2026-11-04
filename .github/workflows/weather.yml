@@ -1,9 +1,9 @@
 name: Weather update
 on:
   schedule:
-    # 6:00 and 17:00 America/Toronto. Both EDT (UTC-4) and EST (UTC-5) times are
-    # listed; weather.mjs only sends when the local hour matches.
-    - cron: "0 10,11,21,22 * * *"
+    # Hourly, so the page stays fresh and Hudson's own history log (its station keeps none) fills in.
+    # The email still goes out only at 6:00 and 17:00 America/Toronto: weather.mjs checks the local hour.
+    - cron: "5 * * * *"
   workflow_dispatch:
     inputs:
       send:
