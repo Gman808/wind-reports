@@ -9,6 +9,9 @@ const STATION_ID = "38c24915210f434abd5b834365a0d225";
 const STATION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // ignore the station if it hasn't reported in 2 hours
 // Club de Voile des Laurentides (Pointe-aux-Anglais): its Tempest station readings are printed on the club's home page.
 const CLUB_URL = "https://www.cvl.qc.ca";
+// Same station via the Tempest service (station 59196). Needs a token from tempestwx.com in TEMPEST_TOKEN.
+const TEMPEST_STATION = 59196;
+const MS_TO_KN = 1.94384;
 // Sainte-Anne-de-Bellevue: Environment Canada's public real-time observations (no key needed).
 const ECCC_STATION = "STE-ANNE-DE-BELLEVUE 1";
 const KMH_TO_KN = 1 / 1.852;
@@ -55,6 +58,33 @@ async function fetchStation() {
   }
 }
 
+// Latest Tempest observation for the club's station, in the same shape as fetchClub() returns. Null if
+// there's no token, the service is unreachable, or the reading is stale. Values are passed through as reported.
+async function fetchTempest() {
+  try {
+    if (!process.env.TEMPEST_TOKEN) throw new Error("TEMPEST_TOKEN is not set");
+    const res = await fetch(`https://swd.weatherflow.com/swd/rest/observations/station/${TEMPEST_STATION}?token=${process.env.TEMPEST_TOKEN}`, {
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const o = (await res.json()).obs?.[0];
+    if (!o || o.air_temperature == null) throw new Error("no data");
+    const at = new Date(o.timestamp * 1000);
+    if (Date.now() - at > STATION_MAX_AGE_MS) throw new Error("station data is stale");
+    return {
+      source: "Club de Voile des Laurentides weather station (Tempest)",
+      time: new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, dateStyle: "short", timeStyle: "short" }).format(at),
+      temp: o.air_temperature, feels: o.feels_like,
+      wind: o.wind_avg * MS_TO_KN, gust: o.wind_gust * MS_TO_KN, dir: o.wind_direction,
+      humidity: o.relative_humidity, pressure: o.sea_level_pressure ?? o.barometric_pressure,
+      rainLabel: "Rain today", rain: o.precip_accum_local_day,
+    };
+  } catch (err) {
+    console.warn(`Tempest station unavailable (${err.message}).`);
+    return null;
+  }
+}
+
 // Reads the club's weather block from its home page. Returns the readings, or null if the page is
 // unreachable, the block is missing, or the reading is stale. Impossible values become null individually.
 async function fetchClub() {
@@ -79,7 +109,8 @@ async function fetchClub() {
       temp: num(/mp\S*rature : (-?[\d.]+)/), feels: num(/Ressendi : (-?[\d.]+)/),
       wind: num(/Vent : ([\d.]+)/), gust: num(/Rafale : ([\d.]+)/), dir: num(/Dir : (\d+)/),
       humidity: num(/Humidit\S* : ([\d.]+)/), pressure: num(/Pression : ([\d.]+)/),
-      rainHour: num(/1hr : ([\d.]+)/),
+      source: "Club de Voile des Laurentides weather station (from cvl.qc.ca)",
+      rainLabel: "Rain past hour", rain: num(/1hr : ([\d.]+)/),
     };
     if (o.temp == null) throw new Error("no temperature");
     if (o.pressure < 950 || o.pressure > 1070) o.pressure = null; // not physically possible at lake level
@@ -163,7 +194,7 @@ function clubRows(o) {
   if (!o) return [["Status", "Station data unavailable right now"]];
   const f = (v, fn) => (v == null ? "n/a" : fn(v));
   return [
-    ["Source", "Club de Voile des Laurentides weather station (from cvl.qc.ca)"],
+    ["Source", o.source],
     ["Last reading", o.time],
     ["Temperature", f(o.temp, (v) => `${v}°C` + (o.feels != null ? ` (feels like ${o.feels}°C)` : ""))],
     ["Wind speed", f(o.wind, (v) => `${kn(v)} kn`)],
@@ -171,7 +202,7 @@ function clubRows(o) {
     ["Wind direction", f(o.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)],
     ["Pressure", f(o.pressure, (v) => `${(v / 10).toFixed(1)} kPa`)],
     ["Humidity", f(o.humidity, (v) => `${v}%`)],
-    ["Rain past hour", f(o.rainHour, (v) => `${v} mm`)],
+    [o.rainLabel, f(o.rain, (v) => `${v} mm`)],
   ];
 }
 
@@ -254,7 +285,7 @@ async function sendEmail(text, hour) {
 
 const now = new Date();
 const localHour = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now));
-const [data, station, club, eccc] = await Promise.all([fetchWeather(), fetchStation(), fetchClub(), fetchEccc()]);
+const [data, station, club, eccc] = await Promise.all([fetchWeather(), fetchStation(), fetchTempest().then((t) => t ?? fetchClub()), fetchEccc()]);
 const text = summarize(data, station, club, eccc);
 await buildSite(data, station, club, eccc, now);
 console.log(text);

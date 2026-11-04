@@ -1,0 +1,41 @@
+name: Weather update
+on:
+  schedule:
+    # 6:00 and 17:00 America/Toronto. Both EDT (UTC-4) and EST (UTC-5) times are
+    # listed; weather.mjs only sends when the local hour matches.
+    - cron: "0 10,11,21,22 * * *"
+  workflow_dispatch:
+    inputs:
+      send:
+        description: "Also send the email now"
+        type: boolean
+        default: false
+permissions:
+  pages: write
+  id-token: write
+  contents: read
+concurrency:
+  group: weather
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - name: Fetch weather, build site, send email
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TEMPEST_TOKEN: ${{ secrets.TEMPEST_TOKEN }}
+        run: node weather.mjs ${{ inputs.send && '--send' || '' }}
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
