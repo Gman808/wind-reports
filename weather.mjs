@@ -322,15 +322,13 @@ function windTimeline({ past, forecasts, current, now }, e) {
     pastHtml}${nowHtml}<tr class="band"><td colspan="10">Forecasted Wind</td></tr>${fHtml}</tbody></table></div>`;
 }
 
-// Each location's current wind for the Now row: the Hudson station (or the model when it's down), the club's
-// station, the Environment Canada station.
-function currentWind({ data, station, club, eccc }) {
+// Each location's current wind for the Now row, from its own station only (null, shown as dashes, when the station
+// has no reading): the Hudson station, the club's station, the Environment Canada station.
+function currentWind({ station, club, eccc }) {
   const num = (v) => (v == null ? null : Number(v));
   const kmh = (v) => (v == null ? null : v * KMH_TO_KN);
   return [
-    station
-      ? { wind: num(station.wind), gust: num(station.gust), dir: num(station.windDirection) }
-      : { wind: data.current.wind_speed_10m, gust: data.current.wind_gusts_10m, dir: data.current.wind_direction_10m },
+    station ? { wind: num(station.wind), gust: num(station.gust), dir: num(station.windDirection) } : null,
     club ? { wind: club.wind, gust: club.gust, dir: club.dir } : null,
     eccc ? { wind: kmh(eccc.avg_wnd_spd_10m_pst10mts), gust: kmh(eccc.max_wnd_spd_10m_pst10mts), dir: num(eccc.avg_wnd_dir_10m_pst10mts) } : null,
   ];
