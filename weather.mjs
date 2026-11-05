@@ -55,9 +55,8 @@ async function fetchForecasts() {
 
 async function fetchWeather() {
   const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
-    latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 5, forecast_hours: 12, wind_speed_unit: "kn",
+    latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 5, wind_speed_unit: "kn",
     current: "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m",
-    hourly: "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
     daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant",
   });
   const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
@@ -245,20 +244,6 @@ function forecastRows({ daily: d }) {
   ]);
 }
 
-const HOURLY_HEAD = ["Time", "Wind (kn)", "Gusts (kn)", "Direction"];
-
-// Next 12 hours of wind, starting with the current hour; all wind in knots.
-function hourlyRows({ current, hourly: h }) {
-  const start = Math.max(0, h.time.findIndex((t) => t >= current.time.slice(0, 13)));
-  return h.time.slice(start, start + 12).map((t, j) => {
-    const i = start + j;
-    const dt = new Date(t + ":00");
-    const label = dt.toLocaleDateString("en-CA", { weekday: "short" }) + " " + t.slice(11, 16);
-    return [label, `${kn(h.wind_speed_10m[i])} kn`, `${kn(h.wind_gusts_10m[i])} kn`,
-      `${compass(h.wind_direction_10m[i])} (${Math.round(h.wind_direction_10m[i])}°)`];
-  });
-}
-
 const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "Direction"];
 const hourFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const orNa = (v, fn) => (v == null ? "n/a" : fn(v));
@@ -284,45 +269,71 @@ export function summarize({ data, station, club, eccc }) {
   return lines.join("\n");
 }
 
-// Wind Timeline: the last four clock hours (newest first), then a "Hourly Forecasts" row and the next twelve hours.
-// One table: a Time column, then Wind / Gusts / Direction for each
-// location. Each cell is that station's first reading in that hour; "–" where it has none (Hudson's outdoor
-// sensors are off, and its history only starts building when they report).
+// Wind Timeline, one table: a Time column, then Wind / Gusts / Direction for each location.
+//   1. Past rows, oldest first: the last four clock hours (hourly data) merged with the quarter-hour readings
+//      from the Last 4 Readings log. Where both exist for the same quarter hour, the logged reading is used.
+//   2. A highlighted, bold "Now" row with each location's current reading.
+//   3. A "Forecasted Wind" title row, then the next twelve hours of model wind (hourly), oldest first.
+// "–" marks a cell with no data (Hudson's outdoor sensors are off, so it has no readings or history).
 const PAST_HOURS = 4;
 const PAST_PLACES = ["Hudson", "Pointe-aux-Anglais", "Sainte-Anne-de-Bellevue"];
 const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
-function windTimeline(past, forecasts, now, e) {
-  const HOUR = 3_600_000;
-  const byHour = [past.hudson, past.club, past.eccc].map((rows) => new Map((rows ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
-  const nowHour = Math.floor(now.getTime() / HOUR);
-  const cell = (v, fn) => `<td>${v == null ? "–" : e(fn(v))}</td>`;
-  const rows = [...Array(PAST_HOURS)].map((_, i) => {
-    const h = nowHour - i;
-    const cells = byHour.map((m) => {
-      const r = m.get(h);
-      return r
-        ? cell(r.wind, (v) => String(kn(v))) + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)
-        : "<td>–</td><td>–</td><td>–</td>";
-    }).join("");
-    return `<tr><td>${e(clockFormat.format(new Date(h * HOUR)))}</td>${cells}</tr>`;
-  }).join("");
-  // Below a title row: the next FORECAST_HOURS hours of model wind for each location, oldest first.
-  const fByHour = PAST_PLACES.map((_, i) => new Map((forecasts?.[i] ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
-  const forecastRowsHtml = [...Array(FORECAST_HOURS)].map((_, i) => {
+function windTimeline({ past, forecasts, current, now }, e) {
+  const HOUR = 3_600_000, QUARTER = 900_000;
+  const nowMs = now.getTime(), nowHour = Math.floor(nowMs / HOUR);
+  const windCells = (r) => {
+    const cell = (v, fn) => `<td>${v == null ? "–" : e(fn(v))}</td>`;
+    return r
+      ? cell(r.wind, (v) => String(kn(v))) + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)
+      : "<td>–</td><td>–</td><td>–</td>";
+  };
+  const rowHtml = (label, readings, cls = "") =>
+    `<tr${cls ? ` class="${cls}"` : ""}><td>${e(label)}</td>${readings.map(windCells).join("")}</tr>`;
+
+  // 1. Past: per location, quarter-hour slot -> reading. Hourly data first, then the logged quarter-hour readings on top.
+  const hourly = [past.hudson, past.club, past.eccc];
+  const quarter = PAST_PLACES.map((p) => past.log4?.[{ Hudson: "hudson", "Pointe-aux-Anglais": "club", "Sainte-Anne-de-Bellevue": "eccc" }[p]] ?? []);
+  const maps = hourly.map((rows, i) => {
+    const m = new Map();
+    for (const r of rows ?? []) {
+      const h = Math.floor(r.t / HOUR);
+      if (h > nowHour - PAST_HOURS && h <= nowHour) m.set(h * 4, r);
+    }
+    for (const r of quarter[i]) if (r.t > nowMs - PAST_HOURS * HOUR && r.t <= nowMs) m.set(Math.floor(r.t / QUARTER), r);
+    return m;
+  });
+  const slots = [...new Set(maps.flatMap((m) => [...m.keys()]))].sort((a, b) => a - b);
+  const pastHtml = slots.map((s) => rowHtml(clockFormat.format(new Date(s * QUARTER)), maps.map((m) => m.get(s)))).join("");
+
+  // 2. Now
+  const nowHtml = rowHtml(`Now ${clockFormat.format(now)}`, current, "now");
+
+  // 3. Forecast
+  const fMaps = PAST_PLACES.map((_, i) => new Map((forecasts?.[i] ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
+  const fHtml = [...Array(FORECAST_HOURS)].map((_, i) => {
     const h = nowHour + 1 + i;
-    const cells = fByHour.map((m) => {
-      const r = m.get(h);
-      return r
-        ? cell(r.wind, (v) => String(kn(v))) + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)
-        : "<td>–</td><td>–</td><td>–</td>";
-    }).join("");
-    return `<tr><td>${e(clockFormat.format(new Date(h * HOUR)))}</td>${cells}</tr>`;
+    return rowHtml(clockFormat.format(new Date(h * HOUR)), fMaps.map((m) => m.get(h)));
   }).join("");
-  const title = `<tr class="band"><td colspan="10">Hourly Forecasts</td></tr>`;
+
   const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
   const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>Direction</th>").join("");
-  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${rows}${title}${forecastRowsHtml}</tbody></table></div>`;
+  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${
+    pastHtml}${nowHtml}<tr class="band"><td colspan="10">Forecasted Wind</td></tr>${fHtml}</tbody></table></div>`;
+}
+
+// Each location's current wind for the Now row: the Hudson station (or the model when it's down), the club's
+// station, the Environment Canada station.
+function currentWind({ data, station, club, eccc }) {
+  const num = (v) => (v == null ? null : Number(v));
+  const kmh = (v) => (v == null ? null : v * KMH_TO_KN);
+  return [
+    station
+      ? { wind: num(station.wind), gust: num(station.gust), dir: num(station.windDirection) }
+      : { wind: data.current.wind_speed_10m, gust: data.current.wind_gusts_10m, dir: data.current.wind_direction_10m },
+    club ? { wind: club.wind, gust: club.gust, dir: club.dir } : null,
+    eccc ? { wind: kmh(eccc.avg_wnd_spd_10m_pst10mts), gust: kmh(eccc.max_wnd_spd_10m_pst10mts), dir: num(eccc.avg_wnd_dir_10m_pst10mts) } : null,
+  ];
 }
 
 export function render(c) {
@@ -342,8 +353,8 @@ export function render(c) {
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5}
 h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:#f2f5f8;padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
 .scroll{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid #d5dbe1;white-space:nowrap}
-th,.band td{background:#f2f5f8}.band td{font-weight:600}small{color:#666}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
-@media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th,.band td{background:#1f262d}td,th{border-color:#333b44}small{color:#999}}</style>
+th,.band td{background:#f2f5f8}.band td{font-weight:600}.now td{background:#fff3bf;font-weight:700}small{color:#666}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
+@media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th,.band td{background:#1f262d}.now td{background:#4a4012}td,th{border-color:#333b44}small{color:#999}}</style>
 </head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern) · <span id="age" data-t="${now.toISOString()}"></span></small>
 <button id="refresh" type="button">Refresh</button>
 <h2>Hudson</h2>${list(currentRows(data.current, station))}
@@ -353,8 +364,7 @@ th,.band td{background:#f2f5f8}.band td{font-weight:600}small{color:#666}button{
 ${pastSection("Hudson", past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
 ${pastSection("Pointe-aux-Anglais", past.log4.club, "No station reading yet.")}
 ${pastSection("Sainte-Anne-de-Bellevue", past.log4.eccc, "No station reading yet.")}
-<h2>Wind Timeline</h2>${windTimeline(past, forecasts, now, e)}
-<h2>Hourly Wind Forecast</h2>${table(HOURLY_HEAD, hourlyRows(data))}
+<h2>Wind Timeline</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}
 <h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
 <script>
 var age = document.getElementById("age"), t = Date.parse(age.dataset.t);
