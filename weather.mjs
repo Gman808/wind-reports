@@ -28,6 +28,31 @@ const CODES = {
 const desc = (c) => CODES[c] ?? "?";
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+// Where the Wind Timeline forecast is taken: Hudson, the club's station (Pointe-aux-Anglais) and the Environment Canada station.
+const FORECAST_POINTS = [[LAT, LON], [45.49616, -74.17428], [45.427, -73.929]];
+const FORECAST_HOURS = 12;
+
+// Hourly model wind for each point, as [{ t (ms), wind (kn), gust (kn), dir }] arrays in FORECAST_POINTS order, or null.
+// One Open-Meteo request covers all three points.
+async function fetchForecasts() {
+  try {
+    const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
+      latitude: FORECAST_POINTS.map((p) => p[0]).join(","), longitude: FORECAST_POINTS.map((p) => p[1]).join(","),
+      timezone: TZ, timeformat: "unixtime", forecast_hours: FORECAST_HOURS + 2, wind_speed_unit: "kn",
+      hourly: "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
+    });
+    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) throw new Error(`Open-Meteo returned ${res.status}`);
+    const json = await res.json();
+    return (Array.isArray(json) ? json : [json]).map(({ hourly: h }) => h.time.map((t, i) => ({
+      t: t * 1000, wind: h.wind_speed_10m[i], gust: h.wind_gusts_10m[i], dir: h.wind_direction_10m[i],
+    })));
+  } catch (err) {
+    console.warn(`Hourly forecasts unavailable (${err.message}).`);
+    return null;
+  }
+}
+
 async function fetchWeather() {
   const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
     latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 5, forecast_hours: 12, wind_speed_unit: "kn",
@@ -259,14 +284,15 @@ export function summarize({ data, station, club, eccc }) {
   return lines.join("\n");
 }
 
-// The last four clock hours, newest first, one table: a Time column, then Wind / Gusts / Direction for each
+// Wind Timeline: the last four clock hours (newest first), then a "Hourly Forecasts" row and the next twelve hours.
+// One table: a Time column, then Wind / Gusts / Direction for each
 // location. Each cell is that station's first reading in that hour; "–" where it has none (Hudson's outdoor
 // sensors are off, and its history only starts building when they report).
 const PAST_HOURS = 4;
 const PAST_PLACES = ["Hudson", "Pointe-aux-Anglais", "Sainte-Anne-de-Bellevue"];
 const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
-function pastHoursTable(past, now, e) {
+function windTimeline(past, forecasts, now, e) {
   const HOUR = 3_600_000;
   const byHour = [past.hudson, past.club, past.eccc].map((rows) => new Map((rows ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
   const nowHour = Math.floor(now.getTime() / HOUR);
@@ -281,13 +307,26 @@ function pastHoursTable(past, now, e) {
     }).join("");
     return `<tr><td>${e(clockFormat.format(new Date(h * HOUR)))}</td>${cells}</tr>`;
   }).join("");
+  // Below a title row: the next FORECAST_HOURS hours of model wind for each location, oldest first.
+  const fByHour = PAST_PLACES.map((_, i) => new Map((forecasts?.[i] ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
+  const forecastRowsHtml = [...Array(FORECAST_HOURS)].map((_, i) => {
+    const h = nowHour + 1 + i;
+    const cells = fByHour.map((m) => {
+      const r = m.get(h);
+      return r
+        ? cell(r.wind, (v) => String(kn(v))) + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)
+        : "<td>–</td><td>–</td><td>–</td>";
+    }).join("");
+    return `<tr><td>${e(clockFormat.format(new Date(h * HOUR)))}</td>${cells}</tr>`;
+  }).join("");
+  const title = `<tr class="band"><td colspan="10">Hourly Forecasts</td></tr>`;
   const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
   const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>Direction</th>").join("");
-  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${rows}${title}${forecastRowsHtml}</tbody></table></div>`;
 }
 
 export function render(c) {
-  const { data, station, club, eccc, past, now } = c;
+  const { data, station, club, eccc, past, forecasts, now } = c;
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
   const e = escapeHtml;
   const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
@@ -303,8 +342,8 @@ export function render(c) {
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5}
 h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:#f2f5f8;padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
 .scroll{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid #d5dbe1;white-space:nowrap}
-th{background:#f2f5f8}small{color:#666}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
-@media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th{background:#1f262d}td,th{border-color:#333b44}small{color:#999}}</style>
+th,.band td{background:#f2f5f8}.band td{font-weight:600}small{color:#666}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
+@media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th,.band td{background:#1f262d}td,th{border-color:#333b44}small{color:#999}}</style>
 </head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern) · <span id="age" data-t="${now.toISOString()}"></span></small>
 <button id="refresh" type="button">Refresh</button>
 <h2>Hudson</h2>${list(currentRows(data.current, station))}
@@ -314,7 +353,7 @@ th{background:#f2f5f8}small{color:#666}button{font:inherit;margin-left:.5rem;pad
 ${pastSection("Hudson", past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
 ${pastSection("Pointe-aux-Anglais", past.log4.club, "No station reading yet.")}
 ${pastSection("Sainte-Anne-de-Bellevue", past.log4.eccc, "No station reading yet.")}
-<h2>Past 4 Hours</h2>${pastHoursTable(past, now, e)}
+<h2>Wind Timeline</h2>${windTimeline(past, forecasts, now, e)}
 <h2>Hourly Wind Forecast</h2>${table(HOURLY_HEAD, hourlyRows(data))}
 <h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
 <script>
@@ -336,8 +375,8 @@ document.getElementById("refresh").onclick = function () { location.href = locat
 // the store (written by the last scheduled run) instead of being fetched, which keeps page loads quick.
 export async function collect({ tempestToken, store, now = new Date(), refreshPast = true }) {
   const nowMs = now.getTime();
-  const [data, station, club, eccc] = await Promise.all([
-    fetchWeather(), fetchStation(), fetchTempest(tempestToken).then((t) => t ?? fetchClub()), fetchEccc(),
+  const [data, station, club, eccc, forecasts] = await Promise.all([
+    fetchWeather(), fetchStation(), fetchTempest(tempestToken).then((t) => t ?? fetchClub()), fetchEccc(), fetchForecasts(),
   ]);
   const [hudsonLog, readingsLog] = await Promise.all([store.get("hudson-history", []), store.get("readings-log", {})]);
   const [pastClub, pastSte] = refreshPast
@@ -358,7 +397,7 @@ export async function collect({ tempestToken, store, now = new Date(), refreshPa
   };
   const log4 = recordLatest(readingsLog, latest);
   const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, log4 };
-  return { data, station, club, eccc, past, now };
+  return { data, station, club, eccc, past, forecasts, now };
 }
 
 // Saves what the next run (or page load) needs. Only scheduled runs should call this.
