@@ -245,6 +245,9 @@ function forecastRows({ daily: d }) {
 }
 
 const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "From"];
+
+// How each location is named on the page and in the email.
+const TITLES = { hudson: "Hudson (HYC)", club: "Pointe-aux-Anglais (CVL)", eccc: "Sainte-Anne-de-Bellevue (Weather Station)" };
 const hourFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const orNa = (v, fn) => (v == null ? "n/a" : fn(v));
 
@@ -262,9 +265,9 @@ function pastTableRows(rows) {
 // Plain-text version for the email.
 export function summarize({ data, station, club, eccc }) {
   const bullets = (rows) => rows.map(([k, v]) => `• ${k}: ${v}`);
-  const lines = ["Current Conditions – Hudson", ...bullets(currentRows(data.current, station)), "",
-    "Current Conditions – Pointe-aux-Anglais", ...bullets(clubRows(club)), "",
-    "Current Conditions – Sainte-Anne-de-Bellevue", ...bullets(ecccRows(eccc)), "", "Five Day Forecast"];
+  const lines = [`Current Conditions – ${TITLES.hudson}`, ...bullets(currentRows(data.current, station)), "",
+    `Current Conditions – ${TITLES.club}`, ...bullets(clubRows(club)), "",
+    `Current Conditions – ${TITLES.eccc}`, ...bullets(ecccRows(eccc)), "", "Five Day Forecast"];
   for (const r of forecastRows(data)) lines.push(`• ${r[0]}: ${r[1]}, ${r[2]}, precip ${r[3]}, wind ${r[4]} gusting ${r[5]}`);
   return lines.join("\n");
 }
@@ -276,7 +279,7 @@ export function summarize({ data, station, club, eccc }) {
 //   3. A "Forecasted Wind" title row, then the next twelve hours of model wind (hourly), oldest first.
 // "–" marks a cell with no data (Hudson's outdoor sensors are off, so it has no readings or history).
 const PAST_HOURS = 4;
-const PAST_PLACES = ["Hudson", "Pointe-aux-Anglais", "Sainte-Anne-de-Bellevue"];
+const PAST_PLACES = [TITLES.hudson, TITLES.club, TITLES.eccc];
 const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 function windTimeline({ past, forecasts, current, now }, e) {
@@ -293,7 +296,7 @@ function windTimeline({ past, forecasts, current, now }, e) {
 
   // 1. Past: per location, quarter-hour slot -> reading. Hourly data first, then the logged quarter-hour readings on top.
   const hourly = [past.hudson, past.club, past.eccc];
-  const quarter = PAST_PLACES.map((p) => past.log4?.[{ Hudson: "hudson", "Pointe-aux-Anglais": "club", "Sainte-Anne-de-Bellevue": "eccc" }[p]] ?? []);
+  const quarter = ["hudson", "club", "eccc"].map((k) => past.log4?.[k] ?? []);
   const maps = hourly.map((rows, i) => {
     const m = new Map();
     for (const r of rows ?? []) {
@@ -355,13 +358,13 @@ th,.band td{background:#f2f5f8}.band td{font-weight:600}.now td{background:#fff3
 @media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th,.band td{background:#1f262d}.now td{background:#4a4012}td,th{border-color:#333b44}small{color:#999}}</style>
 </head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern) · <span id="age" data-t="${now.toISOString()}"></span></small>
 <button id="refresh" type="button">Refresh</button>
-<h2>Hudson</h2>${list(currentRows(data.current, station))}
-<h2>Pointe-aux-Anglais</h2>${list(clubRows(club))}
-<h2>Sainte-Anne-de-Bellevue</h2>${list(ecccRows(eccc))}
+<h2>${e(TITLES.hudson)}</h2>${list(currentRows(data.current, station))}
+<h2>${e(TITLES.club)}</h2>${list(clubRows(club))}
+<h2>${e(TITLES.eccc)}</h2>${list(ecccRows(eccc))}
 <h2>Last 4 Readings</h2><small>One reading per update, about 15 minutes apart. Each station's own reading time is shown.</small>
-${pastSection("Hudson", past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
-${pastSection("Pointe-aux-Anglais", past.log4.club, "No station reading yet.")}
-${pastSection("Sainte-Anne-de-Bellevue", past.log4.eccc, "No station reading yet.")}
+${pastSection(TITLES.hudson, past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
+${pastSection(TITLES.club, past.log4.club, "No station reading yet.")}
+${pastSection(TITLES.eccc, past.log4.eccc, "No station reading yet.")}
 <h2>Wind Timeline</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}
 <h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
 <script>
