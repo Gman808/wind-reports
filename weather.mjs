@@ -342,9 +342,9 @@ console.log(text);
 // GitHub cron is UTC, so the workflow fires at both DST and non-DST hours;
 // only send when it's actually 6am/5pm in Hudson (or when forced).
 const scheduled = process.env.GITHUB_EVENT_NAME === "schedule";
-// The workflow runs every 15 minutes, so only the first run of the hour may send.
+// The workflow runs at :13, :28, :43 and :58, so only the :13 run (first of the hour) may send.
 const localMinute = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, minute: "numeric" }).format(now));
-if (process.argv.includes("--send") || (scheduled && SEND_HOURS.includes(localHour) && localMinute < 15)) {
+if (process.argv.includes("--send") || (scheduled && SEND_HOURS.includes(localHour) && localMinute < 28)) {
   if (process.env.SMTP_USER && process.env.SMTP_PASS && process.env.EMAIL_TO) {
     await sendEmail(text, localHour);
     console.log("Email sent.");
