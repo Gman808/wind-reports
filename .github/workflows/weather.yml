@@ -1,9 +1,10 @@
 name: Weather update
 on:
   schedule:
-    # Hourly, so the page stays fresh and Hudson's own history log (its station keeps none) fills in.
-    # The email still goes out only at 6:00 and 17:00 America/Toronto: weather.mjs checks the local hour.
-    - cron: "5 * * * *"
+    # Four times an hour (a couple of minutes past :00/:15/:30/:45, since GitHub delays or drops runs at the exact
+    # quarter-hour). Each run adds to the 'Last 4 Readings' log and Hudson's history. The email still goes out
+    # only once, at 6:00 and 17:00 America/Toronto: weather.mjs checks the local hour and minute.
+    - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
     inputs:
       send:

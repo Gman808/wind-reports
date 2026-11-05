@@ -65,19 +65,31 @@ export async function pastTempest(token, now) {
 
 // Hudson's WeatherLink feed has no history, so each run adds its reading to a small log that is
 // published with the site and read back by the next run (from GitHub Pages in CI, from site/ locally).
-export async function loadHudsonLog(outDir) {
-  const file = "hudson-history.json";
+export async function loadPublished(outDir, file, fallback) {
   try {
     const repo = process.env.GITHUB_REPOSITORY; // "owner/name"
     if (repo) {
       const [owner, name] = repo.split("/");
       const res = await fetch(`https://${owner.toLowerCase()}.github.io/${name}/${file}`, { signal: AbortSignal.timeout(30_000) });
-      return res.ok ? await res.json() : [];
+      return res.ok ? await res.json() : fallback;
     }
     return JSON.parse(await readFile(new URL(file, outDir), "utf8"));
   } catch {
-    return [];
+    return fallback;
   }
+}
+
+// Rolling log of each location's most recent readings (one per run, so 15 minutes apart), oldest first.
+// `latest` maps location -> reading { t, temp, wind, gust, dir } or null. A reading whose time is already
+// in the log (the station hasn't updated since the last run) is not added twice.
+export function recordLatest(log, latest, keep = 4) {
+  const out = {};
+  for (const [place, reading] of Object.entries(latest)) {
+    const rows = Array.isArray(log?.[place]) ? [...log[place]] : [];
+    if (reading && reading.t != null && !rows.some((r) => r.t === reading.t)) rows.push(reading);
+    out[place] = rows.sort((a, b) => a.t - b.t).slice(-keep);
+  }
+  return out;
 }
 
 // Adds the station's latest reading (if any) to the log and drops entries older than KEEP_HOURS.

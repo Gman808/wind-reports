@@ -1,7 +1,7 @@
 // Fetch Hudson, QC weather (Open-Meteo), build a static page, and email a summary.
 import { mkdir, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
-import { lastHours, loadHudsonLog, pastEccc, pastTempest, recordHudson } from "./history.mjs";
+import { lastHours, loadPublished, pastEccc, pastTempest, recordHudson, recordLatest } from "./history.mjs";
 
 const LAT = 45.4547, LON = -74.1503;
 const TZ = "America/Toronto";
@@ -74,6 +74,7 @@ async function fetchTempest() {
     if (Date.now() - at > STATION_MAX_AGE_MS) throw new Error("station data is stale");
     return {
       source: "Club de Voile des Laurentides weather station (Tempest)",
+      t: at.getTime(),
       time: new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, dateStyle: "short", timeStyle: "short" }).format(at),
       temp: o.air_temperature, feels: o.feels_like,
       wind: o.wind_avg * MS_TO_KN, gust: o.wind_gust * MS_TO_KN, dir: o.wind_direction,
@@ -264,6 +265,7 @@ async function buildSite(data, station, club, eccc, past, now) {
   await mkdir(OUT, { recursive: true });
   await writeFile(new URL("data.json", OUT), JSON.stringify(data));
   await writeFile(new URL("hudson-history.json", OUT), JSON.stringify(past.hudsonLog));
+  await writeFile(new URL("readings-log.json", OUT), JSON.stringify(past.log4));
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
   const e = escapeHtml;
   const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
@@ -285,6 +287,10 @@ th{background:#f2f5f8}small{color:#666}
 <h2>Hudson</h2>${list(currentRows(data.current, station))}
 <h2>Pointe-aux-Anglais</h2>${list(clubRows(club))}
 <h2>Sainte-Anne-de-Bellevue</h2>${list(ecccRows(eccc))}
+<h2>Last 4 Readings</h2><small>One reading per update, about 15 minutes apart. Each station's own reading time is shown.</small>
+${pastSection("Hudson", past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
+${pastSection("Pointe-aux-Anglais", past.log4.club, "No station reading yet.")}
+${pastSection("Sainte-Anne-de-Bellevue", past.log4.eccc, "No station reading yet.")}
 <h2>Past 24 Hours</h2>
 ${pastSection("Hudson", past.hudson, "History is still building: Hudson's station keeps no record, so each update adds one reading here.")}
 ${pastSection("Pointe-aux-Anglais", past.club, "Past data unavailable right now.")}
@@ -310,11 +316,25 @@ const now = new Date();
 const localHour = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now));
 const [data, station, club, eccc] = await Promise.all([fetchWeather(), fetchStation(), fetchTempest().then((t) => t ?? fetchClub()), fetchEccc()]);
 const nowMs = now.getTime();
-const [hudsonLog, pastClub, pastSte] = await Promise.all([
-  loadHudsonLog(OUT), pastTempest(process.env.TEMPEST_TOKEN, nowMs), pastEccc(ECCC_STATION, nowMs),
+const [hudsonLog, readingsLog, pastClub, pastSte] = await Promise.all([
+  loadPublished(OUT, "hudson-history.json", []), loadPublished(OUT, "readings-log.json", {}),
+  pastTempest(process.env.TEMPEST_TOKEN, nowMs), pastEccc(ECCC_STATION, nowMs),
 ]);
 const hudsonAll = recordHudson(hudsonLog, station, nowMs);
-const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte };
+// This run's reading for each location (wind in knots); the log keeps the last 4, one per run.
+const latest = {
+  hudson: station && { t: station.lastReceived, temp: Number(station.temperature), wind: Number(station.wind),
+    gust: Number(station.gust), dir: Number(station.windDirection) },
+  club: club?.t != null ? { t: club.t, temp: club.temp, wind: club.wind, gust: club.gust, dir: club.dir } : null,
+  eccc: eccc && {
+    t: Date.parse(eccc["date_tm-value"]), temp: Number(eccc.air_temp),
+    wind: eccc.avg_wnd_spd_10m_pst10mts == null ? null : eccc.avg_wnd_spd_10m_pst10mts * KMH_TO_KN,
+    gust: eccc.max_wnd_spd_10m_pst10mts == null ? null : eccc.max_wnd_spd_10m_pst10mts * KMH_TO_KN,
+    dir: eccc.avg_wnd_dir_10m_pst10mts ?? null,
+  },
+};
+const log4 = recordLatest(readingsLog, latest);
+const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, log4 };
 const text = summarize(data, station, club, eccc);
 await buildSite(data, station, club, eccc, past, now);
 console.log(text);
@@ -322,7 +342,9 @@ console.log(text);
 // GitHub cron is UTC, so the workflow fires at both DST and non-DST hours;
 // only send when it's actually 6am/5pm in Hudson (or when forced).
 const scheduled = process.env.GITHUB_EVENT_NAME === "schedule";
-if (process.argv.includes("--send") || (scheduled && SEND_HOURS.includes(localHour))) {
+// The workflow runs every 15 minutes, so only the first run of the hour may send.
+const localMinute = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, minute: "numeric" }).format(now));
+if (process.argv.includes("--send") || (scheduled && SEND_HOURS.includes(localHour) && localMinute < 15)) {
   if (process.env.SMTP_USER && process.env.SMTP_PASS && process.env.EMAIL_TO) {
     await sendEmail(text, localHour);
     console.log("Email sent.");
