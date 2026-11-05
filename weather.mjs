@@ -270,7 +270,7 @@ export function summarize({ data, station, club, eccc }) {
 }
 
 // Wind Timeline, one table: a Time column, then Wind / Gusts / From for each location.
-//   1. Past rows, oldest first: the last four clock hours (hourly data) merged with the quarter-hour readings
+//   1. A "Historical Wind Readings" title row, then the past rows, oldest first: the last four clock hours (hourly data) merged with the quarter-hour readings
 //      from the Last 4 Readings log. Where both exist for the same quarter hour, the logged reading is used.
 //   2. A highlighted, bold "Now" row with each location's current reading.
 //   3. A "Forecasted Wind" title row, then the next twelve hours of model wind (hourly), oldest first.
@@ -318,7 +318,7 @@ function windTimeline({ past, forecasts, current, now }, e) {
 
   const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
   const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>From</th>").join("");
-  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${
+  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody><tr class="band"><td colspan="10">Historical Wind Readings</td></tr>${
     pastHtml}${nowHtml}<tr class="band"><td colspan="10">Forecasted Wind</td></tr>${fHtml}</tbody></table></div>`;
 }
 
