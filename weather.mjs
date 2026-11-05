@@ -1,7 +1,6 @@
-// Fetch Hudson, QC weather (Open-Meteo), build a static page, and email a summary.
-import { mkdir, writeFile } from "node:fs/promises";
-import nodemailer from "nodemailer";
-import { lastHours, loadPublished, pastEccc, pastTempest, recordHudson, recordLatest } from "./history.mjs";
+// Hudson, QC weather: fetch every source, build the page and the email text.
+// Runs unchanged in a Cloudflare Worker (worker.mjs) and in Node (cli.mjs); it uses no files and no process.env.
+import { lastHours, pastEccc, pastTempest, recordHudson, recordLatest } from "./history.mjs";
 
 const LAT = 45.4547, LON = -74.1503;
 const TZ = "America/Toronto";
@@ -17,7 +16,6 @@ const MS_TO_KN = 1.94384;
 const ECCC_STATION = "STE-ANNE-DE-BELLEVUE 1";
 const KMH_TO_KN = 1 / 1.852;
 const SEND_HOURS = [6, 17]; // local hours at which an email goes out
-const OUT = new URL("./site/", import.meta.url);
 
 const CODES = {
   0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Freezing fog",
@@ -32,7 +30,7 @@ const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt
 
 async function fetchWeather() {
   const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
-    latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 5, forecast_hours: 24, wind_speed_unit: "kn",
+    latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 5, forecast_hours: 12, wind_speed_unit: "kn",
     current: "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m",
     hourly: "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
     daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant",
@@ -61,10 +59,10 @@ async function fetchStation() {
 
 // Latest Tempest observation for the club's station, in the same shape as fetchClub() returns. Null if
 // there's no token, the service is unreachable, or the reading is stale. Values are passed through as reported.
-async function fetchTempest() {
+async function fetchTempest(token) {
   try {
-    if (!process.env.TEMPEST_TOKEN) throw new Error("TEMPEST_TOKEN is not set");
-    const res = await fetch(`https://swd.weatherflow.com/swd/rest/observations/station/${TEMPEST_STATION}?token=${process.env.TEMPEST_TOKEN}`, {
+    if (!token) throw new Error("TEMPEST_TOKEN is not set");
+    const res = await fetch(`https://swd.weatherflow.com/swd/rest/observations/station/${TEMPEST_STATION}?token=${token}`, {
       signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -224,10 +222,10 @@ function forecastRows({ daily: d }) {
 
 const HOURLY_HEAD = ["Time", "Wind (kn)", "Gusts (kn)", "Direction"];
 
-// Next 24 hours of wind, starting with the current hour; all wind in knots.
+// Next 12 hours of wind, starting with the current hour; all wind in knots.
 function hourlyRows({ current, hourly: h }) {
   const start = Math.max(0, h.time.findIndex((t) => t >= current.time.slice(0, 13)));
-  return h.time.slice(start, start + 24).map((t, j) => {
+  return h.time.slice(start, start + 12).map((t, j) => {
     const i = start + j;
     const dt = new Date(t + ":00");
     const label = dt.toLocaleDateString("en-CA", { weekday: "short" }) + " " + t.slice(11, 16);
@@ -252,7 +250,7 @@ function pastTableRows(rows) {
 }
 
 // Plain-text version for the email.
-function summarize(data, station, club, eccc) {
+export function summarize({ data, station, club, eccc }) {
   const bullets = (rows) => rows.map(([k, v]) => `• ${k}: ${v}`);
   const lines = ["Current Conditions – Hudson", ...bullets(currentRows(data.current, station)), "",
     "Current Conditions – Pointe-aux-Anglais", ...bullets(clubRows(club)), "",
@@ -261,11 +259,8 @@ function summarize(data, station, club, eccc) {
   return lines.join("\n");
 }
 
-async function buildSite(data, station, club, eccc, past, now) {
-  await mkdir(OUT, { recursive: true });
-  await writeFile(new URL("data.json", OUT), JSON.stringify(data));
-  await writeFile(new URL("hudson-history.json", OUT), JSON.stringify(past.hudsonLog));
-  await writeFile(new URL("readings-log.json", OUT), JSON.stringify(past.log4));
+export function render(c) {
+  const { data, station, club, eccc, past, now } = c;
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
   const e = escapeHtml;
   const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
@@ -273,9 +268,9 @@ async function buildSite(data, station, club, eccc, past, now) {
     rows.map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const head = FORECAST_HEAD.map((h) => `<th>${e(h)}</th>`).join("");
   const body = forecastRows(data).map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("");
-const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
+  const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
     rows?.length ? table(PAST_HEAD, pastTableRows(rows)) : `<p><small>${e(empty)}</small></p>`}`;
-  await writeFile(new URL("index.html", OUT), `<!doctype html>
+  return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hudson, QC Weather</title>
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5}
@@ -309,58 +304,56 @@ show(); setInterval(show, 30000);
 // A new query string gets past the browser and CDN caches, so this fetches the latest published page.
 document.getElementById("refresh").onclick = function () { location.href = location.pathname + "?r=" + Date.now(); };
 </script>
-</body></html>`);
+</body></html>`;
 }
 
-async function sendEmail(text, hour) {
-  const { SMTP_USER, SMTP_PASS, EMAIL_TO, SMTP_HOST = "smtp.gmail.com" } = process.env;
-  const transport = nodemailer.createTransport({
-    host: SMTP_HOST, port: 465, secure: true, auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-  await transport.sendMail({
-    from: SMTP_USER, to: EMAIL_TO,
-    subject: `Hudson weather – ${hour < 12 ? "Morning" : "Evening"} update`,
-    text,
-  });
+// Fetches every source and works out the logs. `store` is { get(key, fallback), put(key, value) }:
+// KV in the Worker, files in Node. With refreshPast = false the two heavy 24-hour histories are read from
+// the store (written by the last scheduled run) instead of being fetched, which keeps page loads quick.
+export async function collect({ tempestToken, store, now = new Date(), refreshPast = true }) {
+  const nowMs = now.getTime();
+  const [data, station, club, eccc] = await Promise.all([
+    fetchWeather(), fetchStation(), fetchTempest(tempestToken).then((t) => t ?? fetchClub()), fetchEccc(),
+  ]);
+  const [hudsonLog, readingsLog] = await Promise.all([store.get("hudson-history", []), store.get("readings-log", {})]);
+  const [pastClub, pastSte] = refreshPast
+    ? await Promise.all([pastTempest(tempestToken, nowMs), pastEccc(ECCC_STATION, nowMs)])
+    : await Promise.all([store.get("past-club", null), store.get("past-eccc", null)]);
+  const hudsonAll = recordHudson(hudsonLog, station, nowMs);
+  // This moment's reading for each location (wind in knots); the log keeps the last 4.
+  const latest = {
+    hudson: station && { t: station.lastReceived, temp: Number(station.temperature), wind: Number(station.wind),
+      gust: Number(station.gust), dir: Number(station.windDirection) },
+    club: club?.t != null ? { t: club.t, temp: club.temp, wind: club.wind, gust: club.gust, dir: club.dir } : null,
+    eccc: eccc && {
+      t: Date.parse(eccc["date_tm-value"]), temp: Number(eccc.air_temp),
+      wind: eccc.avg_wnd_spd_10m_pst10mts == null ? null : eccc.avg_wnd_spd_10m_pst10mts * KMH_TO_KN,
+      gust: eccc.max_wnd_spd_10m_pst10mts == null ? null : eccc.max_wnd_spd_10m_pst10mts * KMH_TO_KN,
+      dir: eccc.avg_wnd_dir_10m_pst10mts ?? null,
+    },
+  };
+  const log4 = recordLatest(readingsLog, latest);
+  const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, log4 };
+  return { data, station, club, eccc, past, now };
 }
 
-const now = new Date();
-const localHour = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now));
-const [data, station, club, eccc] = await Promise.all([fetchWeather(), fetchStation(), fetchTempest().then((t) => t ?? fetchClub()), fetchEccc()]);
-const nowMs = now.getTime();
-const [hudsonLog, readingsLog, pastClub, pastSte] = await Promise.all([
-  loadPublished(OUT, "hudson-history.json", []), loadPublished(OUT, "readings-log.json", {}),
-  pastTempest(process.env.TEMPEST_TOKEN, nowMs), pastEccc(ECCC_STATION, nowMs),
-]);
-const hudsonAll = recordHudson(hudsonLog, station, nowMs);
-// This run's reading for each location (wind in knots); the log keeps the last 4, one per run.
-const latest = {
-  hudson: station && { t: station.lastReceived, temp: Number(station.temperature), wind: Number(station.wind),
-    gust: Number(station.gust), dir: Number(station.windDirection) },
-  club: club?.t != null ? { t: club.t, temp: club.temp, wind: club.wind, gust: club.gust, dir: club.dir } : null,
-  eccc: eccc && {
-    t: Date.parse(eccc["date_tm-value"]), temp: Number(eccc.air_temp),
-    wind: eccc.avg_wnd_spd_10m_pst10mts == null ? null : eccc.avg_wnd_spd_10m_pst10mts * KMH_TO_KN,
-    gust: eccc.max_wnd_spd_10m_pst10mts == null ? null : eccc.max_wnd_spd_10m_pst10mts * KMH_TO_KN,
-    dir: eccc.avg_wnd_dir_10m_pst10mts ?? null,
-  },
+// Saves what the next run (or page load) needs. Only scheduled runs should call this.
+export async function persist({ past }, store) {
+  await Promise.all([
+    store.put("hudson-history", past.hudsonLog), store.put("readings-log", past.log4),
+    past.club && store.put("past-club", past.club), past.eccc && store.put("past-eccc", past.eccc),
+  ]);
+}
+
+// The email goes out at 6:00 and 17:00 Eastern, from the first scheduled run of that hour.
+// The schedule fires at :13, :28, :43 and :58, so "minute < 28" picks the :13 run (and tolerates delay).
+export function emailDue(now) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", minute: "numeric", hourCycle: "h23" })
+    .formatToParts(now).map((p) => [p.type, p.value]));
+  return SEND_HOURS.includes(Number(parts.hour)) && Number(parts.minute) < 28;
+}
+
+export const emailSubject = (now) => {
+  const hour = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now));
+  return `Hudson weather – ${hour < 12 ? "Morning" : "Evening"} update`;
 };
-const log4 = recordLatest(readingsLog, latest);
-const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, log4 };
-const text = summarize(data, station, club, eccc);
-await buildSite(data, station, club, eccc, past, now);
-console.log(text);
-
-// GitHub cron is UTC, so the workflow fires at both DST and non-DST hours;
-// only send when it's actually 6am/5pm in Hudson (or when forced).
-const scheduled = process.env.GITHUB_EVENT_NAME === "schedule";
-// The workflow runs at :13, :28, :43 and :58, so only the :13 run (first of the hour) may send.
-const localMinute = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, minute: "numeric" }).format(now));
-if (process.argv.includes("--send") || (scheduled && SEND_HOURS.includes(localHour) && localMinute < 28)) {
-  if (process.env.SMTP_USER && process.env.SMTP_PASS && process.env.EMAIL_TO) {
-    await sendEmail(text, localHour);
-    console.log("Email sent.");
-  } else {
-    console.log("Email skipped: SMTP_USER, SMTP_PASS and EMAIL_TO are not all set.");
-  }
-}

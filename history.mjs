@@ -1,6 +1,4 @@
 // Past readings for each station, as rows of { t (ms), temp (°C), wind (kn), gust (kn), dir (°) }.
-import { readFile } from "node:fs/promises";
-
 const HOUR = 3_600_000;
 const KEEP_HOURS = 72; // how much of Hudson's own log to carry from run to run
 const KMH_TO_KN = 1 / 1.852;
@@ -25,6 +23,8 @@ export async function pastEccc(station, now) {
   try {
     const url = "https://api.weather.gc.ca/collections/swob-realtime/items?" + new URLSearchParams({
       f: "json", limit: 1600, sortby: "-date_tm-value", "stn_nam-value": station,
+      // Only the fields used below: the full records are ~13 MB for a day (~0.5 MB this way).
+      properties: "date_tm-value,air_temp,avg_wnd_spd_10m_pst10mts,max_wnd_spd_10m_pst10mts,avg_wnd_dir_10m_pst10mts",
       datetime: new Date(now - 25 * HOUR).toISOString().slice(0, 19) + "Z/..",
     });
     const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
@@ -63,22 +63,6 @@ export async function pastTempest(token, now) {
   }
 }
 
-// Hudson's WeatherLink feed has no history, so each run adds its reading to a small log that is
-// published with the site and read back by the next run (from GitHub Pages in CI, from site/ locally).
-export async function loadPublished(outDir, file, fallback) {
-  try {
-    const repo = process.env.GITHUB_REPOSITORY; // "owner/name"
-    if (repo) {
-      const [owner, name] = repo.split("/");
-      const res = await fetch(`https://${owner.toLowerCase()}.github.io/${name}/${file}`, { signal: AbortSignal.timeout(30_000) });
-      return res.ok ? await res.json() : fallback;
-    }
-    return JSON.parse(await readFile(new URL(file, outDir), "utf8"));
-  } catch {
-    return fallback;
-  }
-}
-
 // Rolling log of each location's most recent readings (one per run, so 15 minutes apart), oldest first.
 // `latest` maps location -> reading { t, temp, wind, gust, dir } or null. A reading whose time is already
 // in the log (the station hasn't updated since the last run) is not added twice.
@@ -92,6 +76,7 @@ export function recordLatest(log, latest, keep = 4) {
   return out;
 }
 
+// Hudson's WeatherLink feed has no history, so scheduled runs add its reading to a small log kept in the store.
 // Adds the station's latest reading (if any) to the log and drops entries older than KEEP_HOURS.
 export function recordHudson(log, station, now) {
   const out = Array.isArray(log) ? [...log] : [];
