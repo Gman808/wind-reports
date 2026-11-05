@@ -179,7 +179,7 @@ function currentRows(c, s) {
       ["Temperature", `${s.temperature}°C (feels like ${s.temperatureFeelLike}°C)`],
       ["Wind speed", `${kn(s.wind)} kn`],
       ["Wind gusts", `${kn(s.gust)} kn`],
-      ["Wind direction", `${compass(s.windDirection)} (${Math.round(s.windDirection)}°)`],
+      ["Wind from", `${compass(s.windDirection)} (${Math.round(s.windDirection)}°)`],
       ["Pressure", `${(Number(s.barometer) * INHG_TO_KPA).toFixed(1)} kPa${trend}`],
       ["Humidity", `${s.humidity}%`],
       ["Rain today", `${s.rain} mm`],
@@ -191,7 +191,7 @@ function currentRows(c, s) {
     ["Conditions", desc(c.weather_code)],
     ["Wind speed", `${kn(c.wind_speed_10m)} kn`],
     ["Wind gusts", `${kn(c.wind_gusts_10m)} kn`],
-    ["Wind direction", `${compass(c.wind_direction_10m)} (${Math.round(c.wind_direction_10m)}°)`],
+    ["Wind from", `${compass(c.wind_direction_10m)} (${Math.round(c.wind_direction_10m)}°)`],
     ["Humidity", `${c.relative_humidity_2m}%`],
   ];
 }
@@ -206,7 +206,7 @@ function ecccRows(p) {
     ["Temperature", `${p.air_temp}°C`],
     ["Wind speed", speed == null ? "n/a" : `${kn(speed * KMH_TO_KN)} kn`],
     ["Wind gusts", gust == null ? "n/a" : `${kn(gust * KMH_TO_KN)} kn`],
-    ["Wind direction", dir == null ? "n/a" : `${compass(dir)} (${Math.round(dir)}°)`],
+    ["Wind from", dir == null ? "n/a" : `${compass(dir)} (${Math.round(dir)}°)`],
     ["Pressure", p.stn_pres == null ? "n/a" : `${(p.stn_pres / 10).toFixed(1)} kPa`],
     ["Humidity", p.rel_hum == null ? "n/a" : `${p.rel_hum}%`],
     ["Rain past hour", p.pcpn_amt_pst1hr == null ? "n/a" : `${p.pcpn_amt_pst1hr} mm`],
@@ -223,7 +223,7 @@ function clubRows(o) {
     ["Temperature", f(o.temp, (v) => `${v}°C` + (o.feels != null ? ` (feels like ${o.feels}°C)` : ""))],
     ["Wind speed", f(o.wind, (v) => `${kn(v)} kn`)],
     ["Wind gusts", f(o.gust, (v) => `${kn(v)} kn`)],
-    ["Wind direction", f(o.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)],
+    ["Wind from", f(o.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)],
     ["Pressure", f(o.pressure, (v) => `${(v / 10).toFixed(1)} kPa`)],
     ["Humidity", f(o.humidity, (v) => `${v}%`)],
     [o.rainLabel, f(o.rain, (v) => `${v} mm`)],
@@ -244,7 +244,7 @@ function forecastRows({ daily: d }) {
   ]);
 }
 
-const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "Direction"];
+const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "From"];
 const hourFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const orNa = (v, fn) => (v == null ? "n/a" : fn(v));
 
@@ -269,7 +269,7 @@ export function summarize({ data, station, club, eccc }) {
   return lines.join("\n");
 }
 
-// Wind Timeline, one table: a Time column, then Wind / Gusts / Direction for each location.
+// Wind Timeline, one table: a Time column, then Wind / Gusts / From for each location.
 //   1. Past rows, oldest first: the last four clock hours (hourly data) merged with the quarter-hour readings
 //      from the Last 4 Readings log. Where both exist for the same quarter hour, the logged reading is used.
 //   2. A highlighted, bold "Now" row with each location's current reading.
@@ -317,7 +317,7 @@ function windTimeline({ past, forecasts, current, now }, e) {
   }).join("");
 
   const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
-  const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>Direction</th>").join("");
+  const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>From</th>").join("");
   return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${
     pastHtml}${nowHtml}<tr class="band"><td colspan="10">Forecasted Wind</td></tr>${fHtml}</tbody></table></div>`;
 }
