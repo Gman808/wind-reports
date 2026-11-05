@@ -1,6 +1,6 @@
 // Past readings for each station, as rows of { t (ms), temp (°C), wind (kn), gust (kn), dir (°) }.
 const HOUR = 3_600_000;
-const KEEP_HOURS = 72; // how much of Hudson's own log to carry from run to run
+const KEEP_HOURS = 8; // how much of Hudson's own log to carry from run to run
 const KMH_TO_KN = 1 / 1.852;
 const MS_TO_KN = 1.94384;
 const TEMPEST_DEVICE = 429251; // the Tempest sensor (ST-00115792) at the Club de Voile des Laurentides
@@ -9,7 +9,7 @@ const num = (v) => (v == null || v === "" ? null : Number(v));
 const scale = (v, k) => (v == null ? null : v * k);
 
 // One row per clock hour (the earliest in that hour), newest first, covering the last `hours` hours.
-export function lastHours(rows, now, hours = 24) {
+export function lastHours(rows, now, hours = 5) {
   const byHour = new Map();
   for (const r of [...rows].sort((a, b) => a.t - b.t)) {
     const h = Math.floor(r.t / HOUR);
@@ -18,14 +18,14 @@ export function lastHours(rows, now, hours = 24) {
   return [...byHour.values()].filter((r) => r.t > now - hours * HOUR).sort((a, b) => b.t - a.t);
 }
 
-// Environment Canada's public observations: the top-of-the-hour reading for the past day.
+// Environment Canada's public observations: the top-of-the-hour reading for the past few hours.
 export async function pastEccc(station, now) {
   try {
     const url = "https://api.weather.gc.ca/collections/swob-realtime/items?" + new URLSearchParams({
-      f: "json", limit: 1600, sortby: "-date_tm-value", "stn_nam-value": station,
-      // Only the fields used below: the full records are ~13 MB for a day (~0.5 MB this way).
+      f: "json", limit: 500, sortby: "-date_tm-value", "stn_nam-value": station,
+      // Only the fields used below: full records are ~13 MB per day (~0.1 MB this way for six hours).
       properties: "date_tm-value,air_temp,avg_wnd_spd_10m_pst10mts,max_wnd_spd_10m_pst10mts,avg_wnd_dir_10m_pst10mts",
-      datetime: new Date(now - 25 * HOUR).toISOString().slice(0, 19) + "Z/..",
+      datetime: new Date(now - 6 * HOUR).toISOString().slice(0, 19) + "Z/..",
     });
     const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -43,12 +43,12 @@ export async function pastEccc(station, now) {
   }
 }
 
-// The club's Tempest sensor, one-minute observations for the past day (needs TEMPEST_TOKEN).
+// The club's Tempest sensor, one-minute observations for the past few hours (needs TEMPEST_TOKEN).
 export async function pastTempest(token, now) {
   try {
     if (!token) throw new Error("TEMPEST_TOKEN is not set");
     const url = `https://swd.weatherflow.com/swd/rest/observations/device/${TEMPEST_DEVICE}?` + new URLSearchParams({
-      time_start: Math.floor((now - 25 * HOUR) / 1000), time_end: Math.floor(now / 1000), token,
+      time_start: Math.floor((now - 6 * HOUR) / 1000), time_end: Math.floor(now / 1000), token,
     });
     const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

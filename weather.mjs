@@ -259,6 +259,33 @@ export function summarize({ data, station, club, eccc }) {
   return lines.join("\n");
 }
 
+// The last four clock hours, newest first, one table: a Time column, then Wind / Gusts / Direction for each
+// location. Each cell is that station's first reading in that hour; "–" where it has none (Hudson's outdoor
+// sensors are off, and its history only starts building when they report).
+const PAST_HOURS = 4;
+const PAST_PLACES = ["Hudson", "Pointe-aux-Anglais", "Sainte-Anne-de-Bellevue"];
+const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+function pastHoursTable(past, now, e) {
+  const HOUR = 3_600_000;
+  const byHour = [past.hudson, past.club, past.eccc].map((rows) => new Map((rows ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
+  const nowHour = Math.floor(now.getTime() / HOUR);
+  const cell = (v, fn) => `<td>${v == null ? "–" : e(fn(v))}</td>`;
+  const rows = [...Array(PAST_HOURS)].map((_, i) => {
+    const h = nowHour - i;
+    const cells = byHour.map((m) => {
+      const r = m.get(h);
+      return r
+        ? cell(r.wind, (v) => String(kn(v))) + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)
+        : "<td>–</td><td>–</td><td>–</td>";
+    }).join("");
+    return `<tr><td>${e(clockFormat.format(new Date(h * HOUR)))}</td>${cells}</tr>`;
+  }).join("");
+  const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
+  const sub = PAST_PLACES.map(() => "<th>Wind (kn)</th><th>Gusts (kn)</th><th>Direction</th>").join("");
+  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 export function render(c) {
   const { data, station, club, eccc, past, now } = c;
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
@@ -287,10 +314,7 @@ th{background:#f2f5f8}small{color:#666}button{font:inherit;margin-left:.5rem;pad
 ${pastSection("Hudson", past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
 ${pastSection("Pointe-aux-Anglais", past.log4.club, "No station reading yet.")}
 ${pastSection("Sainte-Anne-de-Bellevue", past.log4.eccc, "No station reading yet.")}
-<h2>Past 24 Hours</h2>
-${pastSection("Hudson", past.hudson, "History is still building: Hudson's station keeps no record, so each update adds one reading here.")}
-${pastSection("Pointe-aux-Anglais", past.club, "Past data unavailable right now.")}
-${pastSection("Sainte-Anne-de-Bellevue", past.eccc, "Past data unavailable right now.")}
+<h2>Past 4 Hours</h2>${pastHoursTable(past, now, e)}
 <h2>Hourly Wind Forecast</h2>${table(HOURLY_HEAD, hourlyRows(data))}
 <h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
 <script>
