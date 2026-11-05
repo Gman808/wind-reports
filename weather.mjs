@@ -282,7 +282,7 @@ function pastHoursTable(past, now, e) {
     return `<tr><td>${e(clockFormat.format(new Date(h * HOUR)))}</td>${cells}</tr>`;
   }).join("");
   const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
-  const sub = PAST_PLACES.map(() => "<th>Wind (kn)</th><th>Gusts (kn)</th><th>Direction</th>").join("");
+  const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>Direction</th>").join("");
   return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
@@ -291,9 +291,9 @@ export function render(c) {
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
   const e = escapeHtml;
   const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
-  const table = (headings, rows) => `<div class="scroll"><table><thead><tr>${headings.map((h) => `<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${
+  const table = (headings, rows) => `<div class="scroll"><table><thead><tr>${headings.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("")}</tr></thead><tbody>${
     rows.map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  const head = FORECAST_HEAD.map((h) => `<th>${e(h)}</th>`).join("");
+  const head = FORECAST_HEAD.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("");
   const body = forecastRows(data).map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("");
   const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
     rows?.length ? table(PAST_HEAD, pastTableRows(rows)) : `<p><small>${e(empty)}</small></p>`}`;
