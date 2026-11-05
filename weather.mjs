@@ -281,9 +281,10 @@ const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5}
 h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:#f2f5f8;padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
 .scroll{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid #d5dbe1;white-space:nowrap}
-th{background:#f2f5f8}small{color:#666}
+th{background:#f2f5f8}small{color:#666}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
 @media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th{background:#1f262d}td,th{border-color:#333b44}small{color:#999}}</style>
-</head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern)</small>
+</head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern) · <span id="age" data-t="${now.toISOString()}"></span></small>
+<button id="refresh" type="button">Refresh</button>
 <h2>Hudson</h2>${list(currentRows(data.current, station))}
 <h2>Pointe-aux-Anglais</h2>${list(clubRows(club))}
 <h2>Sainte-Anne-de-Bellevue</h2>${list(ecccRows(eccc))}
@@ -297,6 +298,17 @@ ${pastSection("Pointe-aux-Anglais", past.club, "Past data unavailable right now.
 ${pastSection("Sainte-Anne-de-Bellevue", past.eccc, "Past data unavailable right now.")}
 <h2>Hourly Wind Forecast</h2>${table(HOURLY_HEAD, hourlyRows(data))}
 <h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+<script>
+var age = document.getElementById("age"), t = Date.parse(age.dataset.t);
+function show() {
+  var m = Math.max(0, Math.round((Date.now() - t) / 60000));
+  age.textContent = m < 1 ? "just now" : m === 1 ? "1 minute ago" : m < 120 ? m + " minutes ago" : Math.round(m / 60) + " hours ago";
+  age.className = m > 45 ? "old" : "";
+}
+show(); setInterval(show, 30000);
+// A new query string gets past the browser and CDN caches, so this fetches the latest published page.
+document.getElementById("refresh").onclick = function () { location.href = location.pathname + "?r=" + Date.now(); };
+</script>
 </body></html>`);
 }
 
