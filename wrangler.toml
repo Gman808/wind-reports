@@ -7,7 +7,7 @@ compatibility_date = "2026-11-01"
 crons = ["13,28,43,58 * * * *"]
 
 # Stores the logs (Hudson's history, the last 4 readings, the 24-hour histories).
-# Create it once with:  npx wrangler kv namespace create WEATHER   then paste the id it prints below.
+# Created with:  npx wrangler kv namespace create WEATHER
 [[kv_namespaces]]
 binding = "WEATHER"
-id = "REPLACE_WITH_THE_ID_FROM_wrangler_kv_namespace_create"
+id = "68fa13e417e24cc4822b5dd8b431ea01"
