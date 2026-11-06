@@ -244,6 +244,7 @@ function forecastRows({ daily: d }) {
   ]);
 }
 
+export const VERSION = "1.1"; // see CHANGELOG.md; each released version is tagged v<version> in git
 const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "From"];
 
 // How each location is named on the page and in the email.
@@ -321,8 +322,8 @@ function windTimeline({ past, forecasts, current, now }, e) {
 
   const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
   const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>From</th>").join("");
-  return `<div class="scroll"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody><tr class="band"><td colspan="10">Historical Wind Readings</td></tr>${
-    pastHtml}${nowHtml}<tr class="band"><td colspan="10">Forecasted Wind</td></tr>${fHtml}</tbody></table></div>`;
+  return `<div class="scroll-container timeline"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody><tr class="band"><td colspan="10"><span class="stick">Historical Wind Readings</span></td></tr>${
+    pastHtml}${nowHtml}<tr class="band"><td colspan="10"><span class="stick">Forecasted Wind</span></td></tr>${fHtml}</tbody></table></div>`;
 }
 
 // Each location's current wind for the Now row, from its own station only (null, shown as dashes, when the station
@@ -342,7 +343,7 @@ export function render(c) {
   const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
   const e = escapeHtml;
   const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
-  const table = (headings, rows) => `<div class="scroll"><table><thead><tr>${headings.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("")}</tr></thead><tbody>${
+  const table = (headings, rows) => `<div class="scroll-container"><table><thead><tr>${headings.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("")}</tr></thead><tbody>${
     rows.map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const head = FORECAST_HEAD.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("");
   const body = forecastRows(data).map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("");
@@ -351,11 +352,34 @@ export function render(c) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hudson, QC Weather</title>
-<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5}
-h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:#f2f5f8;padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
-.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid #d5dbe1;white-space:nowrap}
-th,.band td{background:#f2f5f8}.band td{font-weight:600}.now td{background:#fff3bf;font-weight:700}small{color:#666}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
-@media(prefers-color-scheme:dark){body{background:#14181c;color:#e6e6e6}ul,th,.band td{background:#1f262d}.now td{background:#4a4012}td,th{border-color:#333b44}small{color:#999}}</style>
+<style>
+:root{--bg:#fff;--panel:#f2f5f8;--line:#d5dbe1;--now:#fff3bf;--muted:#666;--head1:2.35rem;--timecol:6rem}
+body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5;background:var(--bg)}
+h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:var(--panel);padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
+table{border-collapse:separate;border-spacing:0;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}
+th,.band td{background:var(--panel)}.band td{font-weight:600}.now td{background:var(--now);font-weight:700}
+small{color:var(--muted)}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
+/* Scroll container: each table scrolls inside its own box, with the header rows and the Time column kept in view. */
+.scroll-container{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.scroll-container thead th{position:sticky;top:0;z-index:2}
+.scroll-container thead tr+tr th{top:var(--head1)}
+.scroll-container tbody td:first-child,.scroll-container thead tr:first-child th:first-child{position:sticky;left:0;z-index:1;background:var(--bg)}
+.scroll-container thead tr:first-child th:first-child{z-index:3;background:var(--panel)}
+.scroll-container .now td:first-child{background:var(--now)}
+.scroll-container .band td:first-child{position:static;background:var(--panel)}
+.band .stick{position:sticky;left:.6rem;display:inline-block}
+.timeline tbody tr:not(.band) td:first-child,.timeline thead tr:first-child th:first-child{min-width:var(--timecol);box-sizing:border-box}
+/* Mobile CSS grid snap: on a phone the Wind Timeline scrolls sideways one location (a 3-column group) at a time,
+   each group snapping in beside the Time column. */
+@media(max-width:640px){
+  :root{--head1:2.1rem;--timecol:6.25rem}
+  body{margin:1rem auto}
+  th,td{padding:.35rem .5rem;font-size:.9rem}
+  .timeline{scroll-snap-type:x mandatory;scroll-padding-left:var(--timecol)}
+  .timeline thead tr:first-child th:not(:first-child){scroll-snap-align:start}
+}
+@media(prefers-color-scheme:dark){:root{--bg:#14181c;--panel:#1f262d;--line:#333b44;--now:#4a4012;--muted:#999}body{color:#e6e6e6}}
+</style>
 </head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern) · <span id="age" data-t="${now.toISOString()}"></span></small>
 <button id="refresh" type="button">Refresh</button>
 <h2>${e(TITLES.hudson)}</h2>${list(currentRows(data.current, station))}
@@ -366,7 +390,8 @@ ${pastSection(TITLES.hudson, past.log4.hudson, "No station reading yet: Hudson's
 ${pastSection(TITLES.club, past.log4.club, "No station reading yet.")}
 ${pastSection(TITLES.eccc, past.log4.eccc, "No station reading yet.")}
 <h2>Wind Timeline</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}
-<h2>Five Day Forecast</h2><div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+<h2>Five Day Forecast</h2><div class="scroll-container"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+<p><small>Version ${VERSION}</small></p>
 <script>
 var age = document.getElementById("age"), t = Date.parse(age.dataset.t);
 function show() {
