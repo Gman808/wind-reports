@@ -4,6 +4,20 @@ Every change to how the site looks or behaves is a numbered version. Each versio
 deployed to Cloudflare with the same tag, so any of them can be brought back (see "Going back" below).
 The version number is also shown at the bottom of the page.
 
+## 1.2 — Lake of Two Mountains Wind Report: French, menu, pages, text size
+- The site is now titled **Lake of Two Mountains Wind Report** (*Rapport des vents du lac des Deux Montagnes*).
+- Full **French version** (`/fr`) alongside English: every label, table, weather description, compass point (O for west) and
+  the unit (nd for nœuds). The email stays in English.
+- "Last 4 Readings" is now **Details from the last Hour**.
+- **Three-line menu button** with Français / English at the top, About, Details from the last Hour, Wind Timeline and
+  Data Sources. It is a details element, so it also works without JavaScript.
+- Two new pages, each in both languages: **About** (`/about`, `/fr/a-propos`) and **Data Sources**
+  (`/data-sources`, `/fr/sources-de-donnees`), which names each source, links to it and explains how it is used.
+- **Text size buttons** (A− / A+) in the header; the choice is remembered in the browser.
+- **Readability CSS:** location data as label/value lists, aligned digits, striped rows with a hover highlight, a divider
+  between locations in the Wind Timeline, visible keyboard focus, larger tap targets, reduced-motion support.
+- Code split into `i18n.mjs` (text), `pages.mjs` (layout, menu, About, Data Sources) and `weather.mjs` (data and tables).
+
 ## 1.1 — scroll containers and mobile grid snap
 - Every table now sits in a **scroll container**: it scrolls inside its own box (up to 70% of the screen height), with the
   header rows and the Time column kept in view.

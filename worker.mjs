@@ -1,6 +1,7 @@
 // Cloudflare Worker: fetches fresh weather on every page load, and every 15 minutes (cron) records the
 // logs and sends the 6:00 / 17:00 email. Settings are in wrangler.toml; secrets are set with `wrangler secret put`.
-import { collect, emailDue, emailSubject, persist, render, summarize } from "./weather.mjs";
+import { collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { PAGES, ROUTES, aboutPage, sourcesPage } from "./pages.mjs";
 
 // KV namespace binding (WEATHER) as the { get, put } store the library expects.
 const kvStore = (kv) => ({
@@ -12,10 +13,12 @@ const kvStore = (kv) => ({
   },
 });
 
-// A page rendered in the last few seconds is reused, so a burst of visitors (or a refresh-happy one)
-// can't hammer the weather services. Per-isolate memory, so it is only a courtesy limit.
+// Data collected in the last few seconds is reused (for either language), so a burst of visitors (or a
+// refresh-happy one) can't hammer the weather services. Per-isolate memory, so it is only a courtesy limit.
 const REUSE_MS = 15_000;
-let recent = { at: 0, html: "" };
+let recent = { at: 0, c: null };
+
+const href = (page, lang) => PAGES[page][lang];
 
 async function sendEmail(env, c) {
   if (!env.RESEND_API_KEY || !env.EMAIL_TO || !env.EMAIL_FROM) {
@@ -32,16 +35,25 @@ async function sendEmail(env, c) {
 
 export default {
   async fetch(request, env) {
-    if (new URL(request.url).pathname !== "/") return new Response("Not found", { status: 404 });
-    if (Date.now() - recent.at > REUSE_MS) {
+    const { pathname } = new URL(request.url);
+    const route = ROUTES[pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname];
+    if (!route) return new Response("Not found", { status: 404 });
+    const ctx = { ...route, href };
+    const headers = { "content-type": "text/html; charset=utf-8" };
+
+    // About and Data Sources are fixed text: no weather data needed.
+    if (route.page !== "home") {
+      return new Response((route.page === "about" ? aboutPage : sourcesPage)(ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });
+    }
+    if (!recent.c || Date.now() - recent.at > REUSE_MS) {
       const store = kvStore(env.WEATHER);
       // The 24-hour histories are refreshed by the cron; on a brand-new deployment (nothing stored yet) do it once here.
       const firstRun = (await store.get("past-eccc", null)) === null;
       const c = await collect({ tempestToken: env.TEMPEST_TOKEN, store, refreshPast: firstRun });
       if (firstRun) await persist(c, store);
-      recent = { at: Date.now(), html: render(c) };
+      recent = { at: Date.now(), c };
     }
-    return new Response(recent.html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    return new Response(renderHome(recent.c, ctx), { headers: { ...headers, "cache-control": "no-store" } });
   },
 
   async scheduled(event, env, ctx) {

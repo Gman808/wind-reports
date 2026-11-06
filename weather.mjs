@@ -1,6 +1,8 @@
-// Hudson, QC weather: fetch every source, build the page and the email text.
+// Lake of Two Mountains wind report: fetch every source, build the pages and the email text.
 // Runs unchanged in a Cloudflare Worker (worker.mjs) and in Node (cli.mjs); it uses no files and no process.env.
 import { lastHours, pastEccc, pastTempest, recordHudson, recordLatest } from "./history.mjs";
+import { KN, compassPoint, locale, setLang, t } from "./i18n.mjs";
+import { ageScript, layout } from "./pages.mjs";
 
 const LAT = 45.4547, LON = -74.1503;
 const TZ = "America/Toronto";
@@ -25,7 +27,7 @@ const CODES = {
   81: "Rain showers", 82: "Violent showers", 85: "Snow showers", 86: "Heavy snow showers",
   95: "Thunderstorm", 96: "Thunderstorm w/ hail", 99: "Thunderstorm w/ hail",
 };
-const desc = (c) => CODES[c] ?? "?";
+const desc = (c) => t(CODES[c] ?? "?");
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 // Where the Wind Timeline forecast is taken: Hudson, the club's station (Pointe-aux-Anglais) and the Environment Canada station.
@@ -164,136 +166,145 @@ async function fetchEccc() {
   }
 }
 
-const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 const INHG_TO_KPA = 3.38639;
-const compass = (deg) => COMPASS[Math.round(deg / 22.5) % 16];
+const compass = (deg) => compassPoint(Math.round(deg / 22.5) % 16);
 const kn = (v) => Math.round(Number(v));
-const wind = (dir, speed, gust) => `${compass(dir)} ${kn(speed)} kn` + (gust != null ? ` gusting ${kn(gust)}` : "");
+const knots = (v) => `${kn(v)} ${KN()}`;
+const bearing = (deg) => `${compass(deg)} (${Math.round(deg)}°)`;
+const na = (v, fn) => (v == null ? t("n/a") : fn(v));
+const feels = (v) => `(${t("feels like")} ${v}°C)`;
 
-// Current conditions as [label, value] rows, from the club station or (fallback) Open-Meteo.
+// Current conditions as [label, value] rows, from the Hudson station or (fallback) Open-Meteo.
 function currentRows(c, s) {
   if (s) {
-    const trend = s.barometerTrend ? ` (${s.barometerTrend.toLowerCase()})` : "";
+    const trend = s.barometerTrend ? ` (${t(s.barometerTrend.toLowerCase())})` : "";
     return [
-      ["Source", "Hudson Yacht Club weather station"],
-      ["Temperature", `${s.temperature}°C (feels like ${s.temperatureFeelLike}°C)`],
-      ["Wind speed", `${kn(s.wind)} kn`],
-      ["Wind gusts", `${kn(s.gust)} kn`],
-      ["Wind from", `${compass(s.windDirection)} (${Math.round(s.windDirection)}°)`],
-      ["Pressure", `${(Number(s.barometer) * INHG_TO_KPA).toFixed(1)} kPa${trend}`],
-      ["Humidity", `${s.humidity}%`],
-      ["Rain today", `${s.rain} mm`],
+      [t("Source"), t("Hudson Yacht Club weather station")],
+      [t("Temperature"), `${s.temperature}°C ${feels(s.temperatureFeelLike)}`],
+      [t("Wind speed"), knots(s.wind)],
+      [t("Wind gusts"), knots(s.gust)],
+      [t("Wind from"), bearing(s.windDirection)],
+      [t("Pressure"), `${(Number(s.barometer) * INHG_TO_KPA).toFixed(1)} kPa${trend}`],
+      [t("Humidity"), `${s.humidity}%`],
+      [t("Rain today"), `${s.rain} mm`],
     ];
   }
   return [
-    ["Source", "Open-Meteo model (club station unavailable)"],
-    ["Temperature", `${Math.round(c.temperature_2m)}°C (feels like ${Math.round(c.apparent_temperature)}°C)`],
-    ["Conditions", desc(c.weather_code)],
-    ["Wind speed", `${kn(c.wind_speed_10m)} kn`],
-    ["Wind gusts", `${kn(c.wind_gusts_10m)} kn`],
-    ["Wind from", `${compass(c.wind_direction_10m)} (${Math.round(c.wind_direction_10m)}°)`],
-    ["Humidity", `${c.relative_humidity_2m}%`],
+    [t("Source"), t("Open-Meteo model (club station unavailable)")],
+    [t("Temperature"), `${Math.round(c.temperature_2m)}°C ${feels(Math.round(c.apparent_temperature))}`],
+    [t("Conditions"), desc(c.weather_code)],
+    [t("Wind speed"), knots(c.wind_speed_10m)],
+    [t("Wind gusts"), knots(c.wind_gusts_10m)],
+    [t("Wind from"), bearing(c.wind_direction_10m)],
+    [t("Humidity"), `${c.relative_humidity_2m}%`],
   ];
 }
 
+const unavailable = () => [[t("Status"), t("Station data unavailable right now")]];
+
 // Same rows as the Hudson list, for Environment Canada's station (wind in km/h, 10-minute averages, pressure in hPa).
 function ecccRows(p) {
-  if (!p) return [["Status", "Station data unavailable right now"]];
+  if (!p) return unavailable();
   const num = (v) => (v == null ? null : Number(v));
   const speed = num(p.avg_wnd_spd_10m_pst10mts), gust = num(p.max_wnd_spd_10m_pst10mts), dir = num(p.avg_wnd_dir_10m_pst10mts);
   return [
-    ["Source", "Environment Canada, Sainte-Anne-de-Bellevue station"],
-    ["Temperature", `${p.air_temp}°C`],
-    ["Wind speed", speed == null ? "n/a" : `${kn(speed * KMH_TO_KN)} kn`],
-    ["Wind gusts", gust == null ? "n/a" : `${kn(gust * KMH_TO_KN)} kn`],
-    ["Wind from", dir == null ? "n/a" : `${compass(dir)} (${Math.round(dir)}°)`],
-    ["Pressure", p.stn_pres == null ? "n/a" : `${(p.stn_pres / 10).toFixed(1)} kPa`],
-    ["Humidity", p.rel_hum == null ? "n/a" : `${p.rel_hum}%`],
-    ["Rain past hour", p.pcpn_amt_pst1hr == null ? "n/a" : `${p.pcpn_amt_pst1hr} mm`],
+    [t("Source"), t("Environment Canada, Sainte-Anne-de-Bellevue station")],
+    [t("Temperature"), `${p.air_temp}°C`],
+    [t("Wind speed"), na(speed, (v) => knots(v * KMH_TO_KN))],
+    [t("Wind gusts"), na(gust, (v) => knots(v * KMH_TO_KN))],
+    [t("Wind from"), na(dir, bearing)],
+    [t("Pressure"), na(p.stn_pres, (v) => `${(v / 10).toFixed(1)} kPa`)],
+    [t("Humidity"), na(p.rel_hum, (v) => `${v}%`)],
+    [t("Rain past hour"), na(p.pcpn_amt_pst1hr, (v) => `${v} mm`)],
   ];
 }
 
 // Same rows as the Hudson list, for the club's station (wind already in knots, pressure in mb).
 function clubRows(o) {
-  if (!o) return [["Status", "Station data unavailable right now"]];
-  const f = (v, fn) => (v == null ? "n/a" : fn(v));
+  if (!o) return unavailable();
   return [
-    ["Source", o.source],
-    ["Last reading", o.time],
-    ["Temperature", f(o.temp, (v) => `${v}°C` + (o.feels != null ? ` (feels like ${o.feels}°C)` : ""))],
-    ["Wind speed", f(o.wind, (v) => `${kn(v)} kn`)],
-    ["Wind gusts", f(o.gust, (v) => `${kn(v)} kn`)],
-    ["Wind from", f(o.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)],
-    ["Pressure", f(o.pressure, (v) => `${(v / 10).toFixed(1)} kPa`)],
-    ["Humidity", f(o.humidity, (v) => `${v}%`)],
-    [o.rainLabel, f(o.rain, (v) => `${v} mm`)],
+    [t("Source"), t(o.source)],
+    [t("Last reading"), o.time],
+    [t("Temperature"), na(o.temp, (v) => `${v}°C` + (o.feels != null ? ` ${feels(o.feels)}` : ""))],
+    [t("Wind speed"), na(o.wind, knots)],
+    [t("Wind gusts"), na(o.gust, knots)],
+    [t("Wind from"), na(o.dir, bearing)],
+    [t("Pressure"), na(o.pressure, (v) => `${(v / 10).toFixed(1)} kPa`)],
+    [t("Humidity"), na(o.humidity, (v) => `${v}%`)],
+    [t(o.rainLabel), na(o.rain, (v) => `${v} mm`)],
   ];
 }
 
-const FORECAST_HEAD = ["Day", "Conditions", "Low / High", "Precip", "Wind (kn)", "Gusts (kn)"];
+// Heading text for a wind column: "Wind (kn)" / "Vent (nd)".
+const windHead = (word) => `${t(word)} (${KN()})`;
+const forecastHead = () => [t("Day"), t("Conditions"), t("Low / High"), t("Precip"), windHead("Wind"), windHead("Gusts")];
+const pastHead = () => [t("Time"), t("Temp"), windHead("Wind"), windHead("Gusts"), t("From")];
 
 // One row of strings per forecast day; all wind in knots.
 function forecastRows({ daily: d }) {
   return d.time.map((day, i) => [
-    i === 0 ? "Today" : new Date(day + "T12:00:00").toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "2-digit" }),
+    i === 0 ? t("Today") : new Date(day + "T12:00:00").toLocaleDateString(locale(), { weekday: "short", month: "short", day: "2-digit" }),
     desc(d.weather_code[i]),
     `${Math.round(d.temperature_2m_min[i])} / ${Math.round(d.temperature_2m_max[i])}°C`,
     `${d.precipitation_probability_max[i]}% (${d.precipitation_sum[i]} mm)`,
-    `${compass(d.wind_direction_10m_dominant[i])} ${kn(d.wind_speed_10m_max[i])} kn`,
-    `${kn(d.wind_gusts_10m_max[i])} kn`,
+    `${compass(d.wind_direction_10m_dominant[i])} ${knots(d.wind_speed_10m_max[i])}`,
+    knots(d.wind_gusts_10m_max[i]),
   ]);
 }
 
-export const VERSION = "1.1"; // see CHANGELOG.md; each released version is tagged v<version> in git
-const PAST_HEAD = ["Time", "Temp", "Wind (kn)", "Gusts (kn)", "From"];
-
 // How each location is named on the page and in the email.
-const TITLES = { hudson: "Hudson (HYC)", club: "Pointe-aux-Anglais (CVL)", eccc: "Sainte-Anne-de-Bellevue (Weather Station)" };
-const hourFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const orNa = (v, fn) => (v == null ? "n/a" : fn(v));
+const titles = () => ({
+  hudson: "Hudson (HYC)", club: "Pointe-aux-Anglais (CVL)", eccc: `Sainte-Anne-de-Bellevue (${t("Weather Station")})`,
+});
+const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 // Past readings as strings, newest first; all wind in knots.
 function pastTableRows(rows) {
+  const weekday = new Intl.DateTimeFormat(locale(), { timeZone: TZ, weekday: "short" });
   return rows.map((r) => [
-    hourFormat.format(new Date(r.t)).replace(",", ""),
-    orNa(r.temp, (v) => `${Number(v).toFixed(1)}°C`),
-    orNa(r.wind, (v) => `${kn(v)} kn`),
-    orNa(r.gust, (v) => `${kn(v)} kn`),
-    orNa(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`),
+    `${weekday.format(new Date(r.t))} ${clockFormat.format(new Date(r.t))}`,
+    na(r.temp, (v) => `${Number(v).toFixed(1)}°C`),
+    na(r.wind, knots),
+    na(r.gust, knots),
+    na(r.dir, bearing),
   ]);
 }
 
-// Plain-text version for the email.
+// Plain-text version for the email (always English).
 export function summarize({ data, station, club, eccc }) {
+  setLang("en");
+  const L = titles();
   const bullets = (rows) => rows.map(([k, v]) => `• ${k}: ${v}`);
-  const lines = [`Current Conditions – ${TITLES.hudson}`, ...bullets(currentRows(data.current, station)), "",
-    `Current Conditions – ${TITLES.club}`, ...bullets(clubRows(club)), "",
-    `Current Conditions – ${TITLES.eccc}`, ...bullets(ecccRows(eccc)), "", "Five Day Forecast"];
+  const lines = [`Current Conditions – ${L.hudson}`, ...bullets(currentRows(data.current, station)), "",
+    `Current Conditions – ${L.club}`, ...bullets(clubRows(club)), "",
+    `Current Conditions – ${L.eccc}`, ...bullets(ecccRows(eccc)), "", "Five Day Forecast"];
   for (const r of forecastRows(data)) lines.push(`• ${r[0]}: ${r[1]}, ${r[2]}, precip ${r[3]}, wind ${r[4]} gusting ${r[5]}`);
   return lines.join("\n");
 }
 
 // Wind Timeline, one table: a Time column, then Wind / Gusts / From for each location.
-//   1. A "Historical Wind Readings" title row, then the past rows, oldest first: the last four clock hours (hourly data) merged with the quarter-hour readings
-//      from the Last 4 Readings log. Where both exist for the same quarter hour, the logged reading is used.
+//   1. A "Historical Wind Readings" title row, then the past rows, oldest first: the last four clock hours (hourly data)
+//      merged with the quarter-hour readings from the log behind "Details from the last Hour". Where both exist for the
+//      same quarter hour, the logged reading is used.
 //   2. A highlighted, bold "Now" row with each location's current reading.
 //   3. A "Forecasted Wind" title row, then the next twelve hours of model wind (hourly), oldest first.
 // "–" marks a cell with no data (Hudson's outdoor sensors are off, so it has no readings or history).
 const PAST_HOURS = 4;
-const PAST_PLACES = [TITLES.hudson, TITLES.club, TITLES.eccc];
-const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 function windTimeline({ past, forecasts, current, now }, e) {
   const HOUR = 3_600_000, QUARTER = 900_000;
+  const L = titles(), places = [L.hudson, L.club, L.eccc];
   const nowMs = now.getTime(), nowHour = Math.floor(nowMs / HOUR);
+  // The first cell of each location carries class "g" (a divider line).
   const windCells = (r) => {
-    const cell = (v, fn) => `<td>${v == null ? "–" : e(fn(v))}</td>`;
+    const cell = (v, fn, cls = "") => `<td${cls ? ` class="${cls}"` : ""}>${v == null ? "–" : e(fn(v))}</td>`;
     return r
-      ? cell(r.wind, (v) => String(kn(v))) + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, (v) => `${compass(v)} (${Math.round(v)}°)`)
-      : "<td>–</td><td>–</td><td>–</td>";
+      ? cell(r.wind, (v) => String(kn(v)), "g") + cell(r.gust, (v) => String(kn(v))) + cell(r.dir, bearing)
+      : '<td class="g">–</td><td>–</td><td>–</td>';
   };
   const rowHtml = (label, readings, cls = "") =>
     `<tr${cls ? ` class="${cls}"` : ""}><td>${e(label)}</td>${readings.map(windCells).join("")}</tr>`;
+  const band = (text) => `<tr class="band"><td colspan="10"><span class="stick">${e(text)}</span></td></tr>`;
 
   // 1. Past: per location, quarter-hour slot -> reading. Hourly data first, then the logged quarter-hour readings on top.
   const hourly = [past.hudson, past.club, past.eccc];
@@ -311,19 +322,19 @@ function windTimeline({ past, forecasts, current, now }, e) {
   const pastHtml = slots.map((s) => rowHtml(clockFormat.format(new Date(s * QUARTER)), maps.map((m) => m.get(s)))).join("");
 
   // 2. Now
-  const nowHtml = rowHtml(`Now ${clockFormat.format(now)}`, current, "now");
+  const nowHtml = rowHtml(`${t("Now")} ${clockFormat.format(now)}`, current, "now");
 
   // 3. Forecast
-  const fMaps = PAST_PLACES.map((_, i) => new Map((forecasts?.[i] ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
+  const fMaps = places.map((_, i) => new Map((forecasts?.[i] ?? []).map((r) => [Math.floor(r.t / HOUR), r])));
   const fHtml = [...Array(FORECAST_HOURS)].map((_, i) => {
     const h = nowHour + 1 + i;
     return rowHtml(clockFormat.format(new Date(h * HOUR)), fMaps.map((m) => m.get(h)));
   }).join("");
 
-  const groups = PAST_PLACES.map((p) => `<th colspan="3">${e(p)}</th>`).join("");
-  const sub = PAST_PLACES.map(() => "<th>Wind<br>(kn)</th><th>Gusts<br>(kn)</th><th>From</th>").join("");
-  return `<div class="scroll-container timeline"><table><thead><tr><th rowspan="2">Time</th>${groups}</tr><tr>${sub}</tr></thead><tbody><tr class="band"><td colspan="10"><span class="stick">Historical Wind Readings</span></td></tr>${
-    pastHtml}${nowHtml}<tr class="band"><td colspan="10"><span class="stick">Forecasted Wind</span></td></tr>${fHtml}</tbody></table></div>`;
+  const groups = places.map((p) => `<th colspan="3" class="g">${e(p)}</th>`).join("");
+  const sub = places.map(() => `<th class="g">${windHead("Wind").replace(" (", "<br>(")}</th><th>${windHead("Gusts").replace(" (", "<br>(")}</th><th>${e(t("From"))}</th>`).join("");
+  return `<div class="scroll-container timeline"><table><thead><tr><th rowspan="2">${e(t("Time"))}</th>${groups}</tr><tr>${sub}</tr></thead><tbody>${
+    band(t("Historical Wind Readings"))}${pastHtml}${nowHtml}${band(t("Forecasted Wind"))}${fHtml}</tbody></table></div>`;
 }
 
 // Each location's current wind for the Now row, from its own station only (null, shown as dashes, when the station
@@ -338,72 +349,34 @@ function currentWind({ station, club, eccc }) {
   ];
 }
 
-export function render(c) {
+// The home page. ctx = { lang, page, href } (see pages.mjs).
+export function renderHome(c, ctx) {
   const { data, station, club, eccc, past, forecasts, now } = c;
-  const stamp = now.toLocaleString("en-CA", { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
+  setLang(ctx.lang);
   const e = escapeHtml;
-  const list = (rows) => `<ul>${rows.map(([k, v]) => `<li><b>${e(k)}:</b> ${e(v)}</li>`).join("")}</ul>`;
-  const table = (headings, rows) => `<div class="scroll-container"><table><thead><tr>${headings.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("")}</tr></thead><tbody>${
-    rows.map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  const head = FORECAST_HEAD.map((h) => `<th>${e(h).replace(" (kn)", "<br>(kn)")}</th>`).join("");
-  const body = forecastRows(data).map((r) => `<tr>${r.map((c) => `<td>${e(c)}</td>`).join("")}</tr>`).join("");
+  const L = titles();
+  const stamp = now.toLocaleString(locale(), { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
+  const facts = (rows) => `<dl class="facts">${rows.map(([k, v]) => `<dt>${e(k)}</dt><dd>${e(v)}</dd>`).join("")}</dl>`;
+  const table = (headings, rows) => `<div class="scroll-container"><table><thead><tr>${headings.map((h) => `<th>${e(h).replace(" (", "<br>(")}</th>`).join("")}</tr></thead><tbody>${
+    rows.map((r) => `<tr>${r.map((cell) => `<td>${e(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
-    rows?.length ? table(PAST_HEAD, pastTableRows(rows)) : `<p><small>${e(empty)}</small></p>`}`;
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hudson, QC Weather</title>
-<style>
-:root{--bg:#fff;--panel:#f2f5f8;--line:#d5dbe1;--now:#fff3bf;--muted:#666;--head1:2.35rem;--timecol:6rem}
-body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px;line-height:1.5;background:var(--bg)}
-h1{margin-bottom:0}h2{margin-top:1.5rem}h3{margin:1rem 0 .25rem}ul{background:var(--panel);padding:1rem 1rem 1rem 2rem;border-radius:8px;margin:0}
-table{border-collapse:separate;border-spacing:0;width:100%}th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}
-th,.band td{background:var(--panel)}.band td{font-weight:600}.now td{background:var(--now);font-weight:700}
-small{color:var(--muted)}button{font:inherit;margin-left:.5rem;padding:.1rem .7rem;cursor:pointer}.old{color:#b45309}
-/* Scroll container: each table scrolls inside its own box, with the header rows and the Time column kept in view. */
-.scroll-container{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.scroll-container thead th{position:sticky;top:0;z-index:2}
-.scroll-container thead tr+tr th{top:var(--head1)}
-.scroll-container tbody td:first-child,.scroll-container thead tr:first-child th:first-child{position:sticky;left:0;z-index:1;background:var(--bg)}
-.scroll-container thead tr:first-child th:first-child{z-index:3;background:var(--panel)}
-.scroll-container .now td:first-child{background:var(--now)}
-.scroll-container .band td:first-child{position:static;background:var(--panel)}
-.band .stick{position:sticky;left:.6rem;display:inline-block}
-.timeline tbody tr:not(.band) td:first-child,.timeline thead tr:first-child th:first-child{min-width:var(--timecol);box-sizing:border-box}
-/* Mobile CSS grid snap: on a phone the Wind Timeline scrolls sideways one location (a 3-column group) at a time,
-   each group snapping in beside the Time column. */
-@media(max-width:640px){
-  :root{--head1:2.1rem;--timecol:6.25rem}
-  body{margin:1rem auto}
-  th,td{padding:.35rem .5rem;font-size:.9rem}
-  .timeline{scroll-snap-type:x mandatory;scroll-padding-left:var(--timecol)}
-  .timeline thead tr:first-child th:not(:first-child){scroll-snap-align:start}
-}
-@media(prefers-color-scheme:dark){:root{--bg:#14181c;--panel:#1f262d;--line:#333b44;--now:#4a4012;--muted:#999}body{color:#e6e6e6}}
-</style>
-</head><body><h1>Current Conditions</h1><small>Last updated ${e(stamp)} (Eastern) · <span id="age" data-t="${now.toISOString()}"></span></small>
-<button id="refresh" type="button">Refresh</button>
-<h2>${e(TITLES.hudson)}</h2>${list(currentRows(data.current, station))}
-<h2>${e(TITLES.club)}</h2>${list(clubRows(club))}
-<h2>${e(TITLES.eccc)}</h2>${list(ecccRows(eccc))}
-<h2>Last 4 Readings</h2><small>One reading per update, about 15 minutes apart. Each station's own reading time is shown.</small>
-${pastSection(TITLES.hudson, past.log4.hudson, "No station reading yet: Hudson's outdoor sensors aren't reporting.")}
-${pastSection(TITLES.club, past.log4.club, "No station reading yet.")}
-${pastSection(TITLES.eccc, past.log4.eccc, "No station reading yet.")}
-<h2>Wind Timeline</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}
-<h2>Five Day Forecast</h2><div class="scroll-container"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
-<p><small>Version ${VERSION}</small></p>
-<script>
-var age = document.getElementById("age"), t = Date.parse(age.dataset.t);
-function show() {
-  var m = Math.max(0, Math.round((Date.now() - t) / 60000));
-  age.textContent = m < 1 ? "just now" : m === 1 ? "1 minute ago" : m < 120 ? m + " minutes ago" : Math.round(m / 60) + " hours ago";
-  age.className = m > 45 ? "old" : "";
-}
-show(); setInterval(show, 30000);
-// A new query string gets past the browser and CDN caches, so this fetches the latest published page.
-document.getElementById("refresh").onclick = function () { location.href = location.pathname + "?r=" + Date.now(); };
-</script>
-</body></html>`;
+    rows?.length ? table(pastHead(), pastTableRows(rows)) : `<p class="note">${e(empty)}</p>`}`;
+  const body = `
+<p class="updated"><small>${e(t("Last updated"))} ${e(stamp)} ${e(t("(Eastern)"))} · <span id="age" data-t="${now.toISOString()}"></span></small>
+<button id="refresh" class="btn" type="button">${e(t("Refresh"))}</button></p>
+<section><h2>${e(t("Current Conditions"))}</h2>
+<h3>${e(L.hudson)}</h3>${facts(currentRows(data.current, station))}
+<h3>${e(L.club)}</h3>${facts(clubRows(club))}
+<h3>${e(L.eccc)}</h3>${facts(ecccRows(eccc))}
+</section>
+<section id="details"><h2>${e(t("Details from the last Hour"))}</h2><p class="note">${e(t("One reading per update, about 15 minutes apart. Each station's own reading time is shown."))}</p>
+${pastSection(L.hudson, past.log4.hudson, t("No station reading yet: Hudson's outdoor sensors aren't reporting."))}
+${pastSection(L.club, past.log4.club, t("No station reading yet."))}
+${pastSection(L.eccc, past.log4.eccc, t("No station reading yet."))}
+</section>
+<section id="timeline"><h2>${e(t("Wind Timeline"))}</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}</section>
+<section id="forecast"><h2>${e(t("Five Day Forecast"))}</h2>${table(forecastHead(), forecastRows(data))}</section>`;
+  return layout({ ctx, title: "", body, extraScript: ageScript(ctx.lang) });
 }
 
 // Fetches every source and works out the logs. `store` is { get(key, fallback), put(key, value) }:
@@ -454,5 +427,5 @@ export function emailDue(now) {
 
 export const emailSubject = (now) => {
   const hour = Number(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now));
-  return `Hudson weather – ${hour < 12 ? "Morning" : "Evening"} update`;
+  return `Lake of Two Mountains Wind Report – ${hour < 12 ? "Morning" : "Evening"} update`;
 };

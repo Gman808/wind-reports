@@ -2,9 +2,18 @@
 // The live site runs from worker.mjs on Cloudflare; this stays for previewing the page without it.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
-import { collect, emailDue, emailSubject, persist, render, summarize } from "./weather.mjs";
+import { collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { aboutPage, sourcesPage } from "./pages.mjs";
 
 const OUT = new URL("./site/", import.meta.url);
+
+// Local preview: every page is a file in site/ and the links are plain file names.
+const FILES = {
+  home: { en: "index.html", fr: "fr.html" },
+  about: { en: "about.html", fr: "a-propos.html" },
+  sources: { en: "data-sources.html", fr: "sources-de-donnees.html" },
+};
+const href = (page, lang) => FILES[page][lang];
 
 // Logs live as JSON files in site/. In GitHub Actions the previous run's files are read back from Pages.
 const store = {
@@ -37,7 +46,12 @@ async function sendEmail(text, subject) {
 await mkdir(OUT, { recursive: true });
 const c = await collect({ tempestToken: process.env.TEMPEST_TOKEN, store });
 await persist(c, store);
-await writeFile(new URL("index.html", OUT), render(c));
+for (const lang of ["en", "fr"]) {
+  const ctx = (page) => ({ lang, page, href });
+  await writeFile(new URL(FILES.home[lang], OUT), renderHome(c, ctx("home")));
+  await writeFile(new URL(FILES.about[lang], OUT), aboutPage(ctx("about")));
+  await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
+}
 await writeFile(new URL("data.json", OUT), JSON.stringify(c.data));
 const text = summarize(c);
 console.log(text);
