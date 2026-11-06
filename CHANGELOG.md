@@ -4,6 +4,10 @@ Every change to how the site looks or behaves is a numbered version. Each versio
 deployed to Cloudflare with the same tag, so any of them can be brought back (see "Going back" below).
 The version number is also shown at the bottom of the page.
 
+## 1.2.1 — fix
+- About and Data Sources could come out in the wrong language (the language was only set by the home page); every page now
+  sets its own language before building.
+
 ## 1.2 — Lake of Two Mountains Wind Report: French, menu, pages, text size
 - The site is now titled **Lake of Two Mountains Wind Report** (*Rapport des vents du lac des Deux Montagnes*).
 - Full **French version** (`/fr`) alongside English: every label, table, weather description, compass point (O for west) and

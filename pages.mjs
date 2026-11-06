@@ -1,8 +1,8 @@
 // Page shell shared by every page (header, menu, text-size buttons, styles, footer) and the two text pages
 // (About, Data Sources), each in English and French.
-import { AGE_TEXT, t } from "./i18n.mjs";
+import { AGE_TEXT, setLang, t } from "./i18n.mjs";
 
-export const VERSION = "1.2"; // see CHANGELOG.md; each released version is tagged v<version> in git
+export const VERSION = "1.2.1"; // see CHANGELOG.md; each released version is tagged v<version> in git
 
 // Where each page lives. Worker URLs here; cli.mjs maps the same pages to file names for a local preview.
 export const PAGES = {
@@ -121,6 +121,7 @@ document.addEventListener("click",function(e){if(!menu.contains(e.target))menu.r
 // ctx = { lang, page, href(page, lang) }; body is trusted HTML; `extraScript` is added after the shared script.
 export function layout({ ctx, title, body, extraScript = "" }) {
   const { lang, page, href } = ctx;
+  setLang(lang);
   const other = lang === "fr" ? "en" : "fr";
   const home = href("home", lang);
   const siteTitle = t("Lake of Two Mountains Wind Report");
@@ -174,6 +175,7 @@ const ext = (url, label) => `<a href="${url}" target="_blank" rel="noopener">${l
 
 export function aboutPage(ctx) {
   const { lang, href } = ctx;
+  setLang(lang); // t() reads a module-level language, so every page sets it before using it
   const src = `<a href="${esc(href("sources", lang))}">`;
   const body = lang === "fr" ? `
 <div class="page">
@@ -227,6 +229,7 @@ export function aboutPage(ctx) {
 
 export function sourcesPage(ctx) {
   const { lang } = ctx;
+  setLang(lang);
   const wl = ext("https://www.weatherlink.com/", "WeatherLink");
   const body = lang === "fr" ? `
 <div class="page">
