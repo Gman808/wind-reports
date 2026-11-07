@@ -44,10 +44,10 @@ export async function pastEccc(station, now) {
 }
 
 // The club's Tempest sensor, one-minute observations for the past few hours (needs TEMPEST_TOKEN).
-export async function pastTempest(token, now) {
+export async function pastTempest(token, now, device = TEMPEST_DEVICE) {
   try {
     if (!token) throw new Error("TEMPEST_TOKEN is not set");
-    const url = `https://swd.weatherflow.com/swd/rest/observations/device/${TEMPEST_DEVICE}?` + new URLSearchParams({
+    const url = `https://swd.weatherflow.com/swd/rest/observations/device/${device}?` + new URLSearchParams({
       time_start: Math.floor((now - 6 * HOUR) / 1000), time_end: Math.floor(now / 1000), token,
     });
     const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
@@ -58,7 +58,7 @@ export async function pastTempest(token, now) {
     }));
     return lastHours(rows, now);
   } catch (err) {
-    console.warn(`Past data for the club station unavailable (${err.message}).`);
+    console.warn(`Past data for Tempest device ${device} unavailable (${err.message}).`);
     return null;
   }
 }

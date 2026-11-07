@@ -14,6 +14,13 @@ const CLUB_URL = "https://www.cvl.qc.ca";
 // Same station via the Tempest service (station 59196). Needs a token from tempestwx.com in TEMPEST_TOKEN.
 const TEMPEST_STATION = 59196;
 const MS_TO_KN = 1.94384;
+// Two more Tempest stations in Oka (same token): station id, outdoor Tempest device id, position for the model forecast.
+const OKA = [
+  { key: "anges", station: 71681, device: 193107, point: [45.46, -74.09367], name: "Oka – Rue des Anges", source: "Rue des Anges weather station (Tempest)" },
+  { key: "tranche", station: 168652, device: 401173, point: [45.46367, -74.07894], name: "Oka – Rue Tranchemontagne", source: "Rue Tranchemontagne weather station (Tempest)" },
+];
+// Locations in column order on the page: Hudson, the club (Pointe-aux-Anglais), the Oka stations, Environment Canada.
+const PLACES = ["hudson", "club", ...OKA.map((o) => o.key), "eccc"];
 // Sainte-Anne-de-Bellevue: Environment Canada's public real-time observations (no key needed).
 const ECCC_STATION = "STE-ANNE-DE-BELLEVUE 1";
 const KMH_TO_KN = 1 / 1.852;
@@ -31,7 +38,7 @@ const desc = (c) => t(CODES[c] ?? "?");
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 // Where the Wind Timeline forecast is taken: Hudson, the club's station (Pointe-aux-Anglais) and the Environment Canada station.
-const FORECAST_POINTS = [[LAT, LON], [45.49616, -74.17428], [45.427, -73.929]];
+const FORECAST_POINTS = [[LAT, LON], [45.49616, -74.17428], ...OKA.map((o) => o.point), [45.427, -73.929]];
 const FORECAST_HOURS = 12;
 
 // Hourly model wind for each point, as [{ t (ms), wind (kn), gust (kn), dir }] arrays in FORECAST_POINTS order, or null.
@@ -85,10 +92,10 @@ async function fetchStation() {
 
 // Latest Tempest observation for the club's station, in the same shape as fetchClub() returns. Null if
 // there's no token, the service is unreachable, or the reading is stale. Values are passed through as reported.
-async function fetchTempest(token) {
+async function fetchTempest(token, station = TEMPEST_STATION, source = "Club de Voile des Laurentides weather station (Tempest)") {
   try {
     if (!token) throw new Error("TEMPEST_TOKEN is not set");
-    const res = await fetch(`https://swd.weatherflow.com/swd/rest/observations/station/${TEMPEST_STATION}?token=${token}`, {
+    const res = await fetch(`https://swd.weatherflow.com/swd/rest/observations/station/${station}?token=${token}`, {
       signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -97,7 +104,7 @@ async function fetchTempest(token) {
     const at = new Date(o.timestamp * 1000);
     if (Date.now() - at > STATION_MAX_AGE_MS) throw new Error("station data is stale");
     return {
-      source: "Club de Voile des Laurentides weather station (Tempest)",
+      source,
       t: at.getTime(),
       time: new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, dateStyle: "short", timeStyle: "short" }).format(at),
       temp: o.air_temperature, feels: o.feels_like,
@@ -106,7 +113,7 @@ async function fetchTempest(token) {
       rainLabel: "Rain today", rain: o.precip_accum_local_day,
     };
   } catch (err) {
-    console.warn(`Tempest station unavailable (${err.message}).`);
+    console.warn(`Tempest station ${station} unavailable (${err.message}).`);
     return null;
   }
 }
@@ -254,7 +261,7 @@ function forecastRows({ daily: d }) {
 
 // How each location is named on the page and in the email.
 const titles = () => ({
-  hudson: "Hudson (HYC)", club: "Pointe-aux-Anglais (CVL)", eccc: `Sainte-Anne-de-Bellevue (${t("Weather Station")})`,
+  hudson: "Hudson (HYC)", club: "Pointe-aux-Anglais (CVL)", ...Object.fromEntries(OKA.map((o) => [o.key, o.name])), eccc: `Sainte-Anne-de-Bellevue (${t("Weather Station")})`,
 });
 const clockFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
@@ -271,12 +278,13 @@ function pastTableRows(rows) {
 }
 
 // Plain-text version for the email (always English).
-export function summarize({ data, station, club, eccc }) {
+export function summarize({ data, station, club, oka, eccc }) {
   setLang("en");
   const L = titles();
   const bullets = (rows) => rows.map(([k, v]) => `• ${k}: ${v}`);
   const lines = [`Current Conditions – ${L.hudson}`, ...bullets(currentRows(data.current, station)), "",
     `Current Conditions – ${L.club}`, ...bullets(clubRows(club)), "",
+    ...OKA.flatMap((o, i) => [`Current Conditions – ${L[o.key]}`, ...bullets(clubRows(oka[i])), ""]),
     `Current Conditions – ${L.eccc}`, ...bullets(ecccRows(eccc)), "", "Five Day Forecast"];
   for (const r of forecastRows(data)) lines.push(`• ${r[0]}: ${r[1]}, ${r[2]}, precip ${r[3]}, wind ${r[4]} gusting ${r[5]}`);
   return lines.join("\n");
@@ -293,7 +301,7 @@ const PAST_HOURS = 4;
 
 function windTimeline({ past, forecasts, current, now }, e) {
   const HOUR = 3_600_000, QUARTER = 900_000;
-  const L = titles(), places = [L.hudson, L.club, L.eccc];
+  const L = titles(), places = PLACES.map((k) => L[k]);
   const nowMs = now.getTime(), nowHour = Math.floor(nowMs / HOUR);
   // The first cell of each location carries class "g" (a divider line).
   const windCells = (r) => {
@@ -304,11 +312,11 @@ function windTimeline({ past, forecasts, current, now }, e) {
   };
   const rowHtml = (label, readings, cls = "") =>
     `<tr${cls ? ` class="${cls}"` : ""}><td>${e(label)}</td>${readings.map(windCells).join("")}</tr>`;
-  const band = (text) => `<tr class="band"><td colspan="10"><span class="stick">${e(text)}</span></td></tr>`;
+  const band = (text) => `<tr class="band"><td colspan="${1 + 3 * PLACES.length}"><span class="stick">${e(text)}</span></td></tr>`;
 
   // 1. Past: per location, quarter-hour slot -> reading. Hourly data first, then the logged quarter-hour readings on top.
-  const hourly = [past.hudson, past.club, past.eccc];
-  const quarter = ["hudson", "club", "eccc"].map((k) => past.log4?.[k] ?? []);
+  const hourly = PLACES.map((k) => past[k]);
+  const quarter = PLACES.map((k) => past.log4?.[k] ?? []);
   const maps = hourly.map((rows, i) => {
     const m = new Map();
     for (const r of rows ?? []) {
@@ -339,19 +347,20 @@ function windTimeline({ past, forecasts, current, now }, e) {
 
 // Each location's current wind for the Now row, from its own station only (null, shown as dashes, when the station
 // has no reading): the Hudson station, the club's station, the Environment Canada station.
-function currentWind({ station, club, eccc }) {
+function currentWind({ station, club, oka, eccc }) {
   const num = (v) => (v == null ? null : Number(v));
   const kmh = (v) => (v == null ? null : v * KMH_TO_KN);
   return [
     station ? { wind: num(station.wind), gust: num(station.gust), dir: num(station.windDirection) } : null,
     club ? { wind: club.wind, gust: club.gust, dir: club.dir } : null,
+    ...oka.map((o) => (o ? { wind: o.wind, gust: o.gust, dir: o.dir } : null)),
     eccc ? { wind: kmh(eccc.avg_wnd_spd_10m_pst10mts), gust: kmh(eccc.max_wnd_spd_10m_pst10mts), dir: num(eccc.avg_wnd_dir_10m_pst10mts) } : null,
   ];
 }
 
 // The home page. ctx = { lang, page, href } (see pages.mjs).
 export function renderHome(c, ctx) {
-  const { data, station, club, eccc, past, forecasts, now } = c;
+  const { data, station, club, oka, eccc, past, forecasts, now } = c;
   setLang(ctx.lang);
   const e = escapeHtml;
   const L = titles();
@@ -367,11 +376,13 @@ export function renderHome(c, ctx) {
 <section><h2>${e(t("Current Conditions"))}</h2>
 <h3>${e(L.hudson)}</h3>${facts(currentRows(data.current, station))}
 <h3>${e(L.club)}</h3>${facts(clubRows(club))}
+${OKA.map((o, i) => `<h3>${e(L[o.key])}</h3>${facts(clubRows(oka[i]))}`).join("")}
 <h3>${e(L.eccc)}</h3>${facts(ecccRows(eccc))}
 </section>
 <section id="details"><h2>${e(t("Details from the last Hour"))}</h2><p class="note">${e(t("One reading per update, about 15 minutes apart. Each station's own reading time is shown."))}</p>
 ${pastSection(L.hudson, past.log4.hudson, t("No station reading yet: Hudson's outdoor sensors aren't reporting."))}
 ${pastSection(L.club, past.log4.club, t("No station reading yet."))}
+${OKA.map((o) => pastSection(L[o.key], past.log4[o.key], t("No station reading yet."))).join("")}
 ${pastSection(L.eccc, past.log4.eccc, t("No station reading yet."))}
 </section>
 <section id="timeline"><h2>${e(t("Wind Timeline"))}</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}</section>
@@ -384,19 +395,21 @@ ${pastSection(L.eccc, past.log4.eccc, t("No station reading yet."))}
 // the store (written by the last scheduled run) instead of being fetched, which keeps page loads quick.
 export async function collect({ tempestToken, store, now = new Date(), refreshPast = true }) {
   const nowMs = now.getTime();
-  const [data, station, club, eccc, forecasts] = await Promise.all([
+  const [data, station, club, eccc, forecasts, ...oka] = await Promise.all([
     fetchWeather(), fetchStation(), fetchTempest(tempestToken).then((t) => t ?? fetchClub()), fetchEccc(), fetchForecasts(),
+    ...OKA.map((o) => fetchTempest(tempestToken, o.station, o.source)),
   ]);
   const [hudsonLog, readingsLog] = await Promise.all([store.get("hudson-history", []), store.get("readings-log", {})]);
-  const [pastClub, pastSte] = refreshPast
-    ? await Promise.all([pastTempest(tempestToken, nowMs), pastEccc(ECCC_STATION, nowMs)])
-    : await Promise.all([store.get("past-club", null), store.get("past-eccc", null)]);
+  const [pastClub, pastSte, ...pastOka] = refreshPast
+    ? await Promise.all([pastTempest(tempestToken, nowMs), pastEccc(ECCC_STATION, nowMs), ...OKA.map((o) => pastTempest(tempestToken, nowMs, o.device))])
+    : await Promise.all([store.get("past-club", null), store.get("past-eccc", null), ...OKA.map((o) => store.get(`past-${o.key}`, null))]);
   const hudsonAll = recordHudson(hudsonLog, station, nowMs);
   // This moment's reading for each location (wind in knots); the log keeps the last 4.
   const latest = {
     hudson: station && { t: station.lastReceived, temp: Number(station.temperature), wind: Number(station.wind),
       gust: Number(station.gust), dir: Number(station.windDirection) },
     club: club?.t != null ? { t: club.t, temp: club.temp, wind: club.wind, gust: club.gust, dir: club.dir } : null,
+    ...Object.fromEntries(OKA.map((o, i) => [o.key, oka[i]?.t != null ? { t: oka[i].t, temp: oka[i].temp, wind: oka[i].wind, gust: oka[i].gust, dir: oka[i].dir } : null])),
     eccc: eccc && {
       t: Date.parse(eccc["date_tm-value"]), temp: Number(eccc.air_temp),
       wind: eccc.avg_wnd_spd_10m_pst10mts == null ? null : eccc.avg_wnd_spd_10m_pst10mts * KMH_TO_KN,
@@ -405,8 +418,8 @@ export async function collect({ tempestToken, store, now = new Date(), refreshPa
     },
   };
   const log4 = recordLatest(readingsLog, latest);
-  const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, log4 };
-  return { data, station, club, eccc, past, forecasts, now };
+  const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, ...Object.fromEntries(OKA.map((o, i) => [o.key, pastOka[i]])), log4 };
+  return { data, station, club, oka, eccc, past, forecasts, now };
 }
 
 // Saves what the next run (or page load) needs. Only scheduled runs should call this.
@@ -414,6 +427,7 @@ export async function persist({ past }, store) {
   await Promise.all([
     store.put("hudson-history", past.hudsonLog), store.put("readings-log", past.log4),
     past.club && store.put("past-club", past.club), past.eccc && store.put("past-eccc", past.eccc),
+    ...OKA.map((o) => past[o.key] && store.put(`past-${o.key}`, past[o.key])),
   ]);
 }
 

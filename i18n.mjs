@@ -18,6 +18,8 @@ const FR = {
   "About": "À propos",
   "Data Sources": "Sources des données",
   "Other Wind Sites": "Autres sites de vent",
+  "Rue des Anges weather station (Tempest)": "Station météo de la rue des Anges (Tempest)",
+  "Rue Tranchemontagne weather station (Tempest)": "Station météo de la rue Tranchemontagne (Tempest)",
   "Menu": "Menu",
   "Language": "Langue",
   "Smaller text": "Texte plus petit",

@@ -4,6 +4,11 @@ Every change to how the site looks or behaves is a numbered version. Each versio
 deployed to Cloudflare with the same tag, so any of them can be brought back (see "Going back" below).
 The version number is also shown at the bottom of the page.
 
+## 1.4 — Two Oka stations
+- Two more Tempest stations in Oka, **Oka – Rue des Anges** (station 71681) and **Oka – Rue Tranchemontagne** (station 168652), added to
+  Current Conditions, Details from the last Hour and the Wind Timeline (now five locations, with forecast wind for each), and the email.
+- About and Data Sources updated.
+
 ## 1.3 — Other Wind Sites
 - New page **Other Wind Sites** (`/other-wind-sites`, `/fr/autres-sites-de-vent`), linked from the menu: Windy.com with a
   short explanation, a link, and Windy's embedded wind map centred on the lake (45.476, -74.143, zoom 14, knots).

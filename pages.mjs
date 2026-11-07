@@ -2,7 +2,7 @@
 // (About, Data Sources), each in English and French.
 import { AGE_TEXT, setLang, t } from "./i18n.mjs";
 
-export const VERSION = "1.3"; // see CHANGELOG.md; each released version is tagged v<version> in git
+export const VERSION = "1.4"; // see CHANGELOG.md; each released version is tagged v<version> in git
 
 // Where each page lives. Worker URLs here; cli.mjs maps the same pages to file names for a local preview.
 export const PAGES = {
@@ -187,7 +187,7 @@ export function aboutPage(ctx) {
 <p>Le <strong>Rapport des vents du lac des Deux Montagnes</strong> réunit sur une même page le vent autour du lac des Deux Montagnes, en nœuds, pour les plaisanciers et toute personne qui surveille le lac.</p>
 <h3>Contenu de la page</h3>
 <ul>
-<li><strong>Conditions actuelles</strong> – la dernière mesure de trois stations météo : Hudson (HYC), Pointe-aux-Anglais (CVL) et Sainte-Anne-de-Bellevue (station météo).</li>
+<li><strong>Conditions actuelles</strong> – la dernière mesure de cinq stations météo : Hudson (HYC), Pointe-aux-Anglais (CVL), Oka – rue des Anges, Oka – rue Tranchemontagne et Sainte-Anne-de-Bellevue (station météo).</li>
 <li><strong>Détails de la dernière heure</strong> – les mesures les plus récentes de chaque station, environ aux 15 minutes.</li>
 <li><strong>Chronologie du vent</strong> – un seul tableau pour les trois endroits : mesures récentes, une ligne <em>Maintenant</em> en surbrillance et le vent prévu pour les 12 prochaines heures.</li>
 <li><strong>Prévisions sur cinq jours</strong> – les prévisions quotidiennes pour Hudson.</li>
@@ -210,7 +210,7 @@ export function aboutPage(ctx) {
 <p>The <strong>Lake of Two Mountains Wind Report</strong> puts the wind around Lake of Two Mountains (Lac des Deux Montagnes) on one page, in knots, for sailors and anyone watching the lake.</p>
 <h3>What is on the page</h3>
 <ul>
-<li><strong>Current Conditions</strong> – the latest reading from three weather stations: Hudson (HYC), Pointe-aux-Anglais (CVL) and Sainte-Anne-de-Bellevue (Weather Station).</li>
+<li><strong>Current Conditions</strong> – the latest reading from five weather stations: Hudson (HYC), Pointe-aux-Anglais (CVL), Oka – Rue des Anges, Oka – Rue Tranchemontagne and Sainte-Anne-de-Bellevue (Weather Station).</li>
 <li><strong>Details from the last Hour</strong> – each station's most recent readings, about 15 minutes apart.</li>
 <li><strong>Wind Timeline</strong> – one table for the three locations: recent readings, a highlighted <em>Now</em> row, and the next 12 hours of forecast wind.</li>
 <li><strong>Five Day Forecast</strong> – a daily outlook for Hudson.</li>
@@ -238,7 +238,7 @@ export function sourcesPage(ctx) {
   const body = lang === "fr" ? `
 <div class="page">
 <h2>Sources des données</h2>
-<p>Chaque chiffre de cette page vient de l'une des quatre sources ci-dessous. Les trois premières sont des <strong>mesures</strong> de stations; la quatrième est un <strong>modèle de prévision</strong>.</p>
+<p>Chaque chiffre de cette page vient de l'une des cinq sources ci-dessous. Les quatre premières sont des <strong>mesures</strong> de stations; la cinquième est un <strong>modèle de prévision</strong>.</p>
 
 <section class="source"><h3>Hudson (HYC) – station météo du Hudson Yacht Club</h3>
 <p>Une station Davis du Hudson Yacht Club, affichée sur la page ${ext("https://hudsonyachtclub.com/club-weather", "Météo du club")} grâce à ${wl}. Ce site lit le même flux public que l'affichage intégré : température, vent (en nœuds), rafales, direction, pression, humidité et pluie.</p>
@@ -247,6 +247,10 @@ export function sourcesPage(ctx) {
 <section class="source"><h3>Pointe-aux-Anglais (CVL) – station du Club de voile des Laurentides</h3>
 <p>Une station météo Tempest (station 59196), dont la ${ext("https://tempestwx.com/station/59196/", "page publique")} est sur tempestwx.com. Les mesures sont lues par l'${ext("https://weatherflow.github.io/Tempest/api/", "API Tempest (WeatherFlow)")}, avec un jeton d'accès; le vent, en mètres par seconde, est converti en nœuds. En cas d'échec, la page utilise le bloc météo publié sur le site du ${ext("https://www.cvl.qc.ca", "Club de voile des Laurentides")}.</p>
 <p class="note">Ces données ont servi à mettre le site au point et peuvent provenir d'un capteur déplacé ou en essai.</p></section>
+
+<section class="source"><h3>Oka – rue des Anges et rue Tranchemontagne – stations Tempest</h3>
+<p>Deux stations météo Tempest privées à Oka : la station ${ext("https://tempestwx.com/station/71681/", "rue des Anges")} (71681) et la station ${ext("https://tempestwx.com/station/168652/", "rue Tranchemontagne")} (168652). Elles sont lues comme celle du CVL, par l'API Tempest; le vent est converti en nœuds.</p>
+<p class="note">Ces stations appartiennent à des particuliers et se trouvent près d'habitations : le vent mesuré peut être plus faible qu'en plein lac.</p></section>
 
 <section class="source"><h3>Sainte-Anne-de-Bellevue (station météo) – Environnement Canada</h3>
 <p>Observations officielles en temps réel de la station « STE-ANNE-DE-BELLEVUE 1 », obtenues par l'${ext("https://api.weather.gc.ca/", "API MSC GeoMet")} d'Environnement et Changement climatique Canada (${ext("https://weather.gc.ca/", "météo officielle")}). Le vent est la moyenne sur 10 minutes et la rafale est le maximum de ces 10 minutes (en km/h, convertis en nœuds). La pression est celle de la station, non ramenée au niveau de la mer.</p></section>
@@ -264,7 +268,7 @@ export function sourcesPage(ctx) {
 </div>` : `
 <div class="page">
 <h2>Data Sources</h2>
-<p>Every number on this page comes from one of the four sources below. The first three are station <strong>measurements</strong>; the fourth is a <strong>forecast model</strong>.</p>
+<p>Every number on this page comes from one of the five sources below. The first four are station <strong>measurements</strong>; the fifth is a <strong>forecast model</strong>.</p>
 
 <section class="source"><h3>Hudson (HYC) – Hudson Yacht Club weather station</h3>
 <p>A Davis weather station run by the Hudson Yacht Club and shown on the club's ${ext("https://hudsonyachtclub.com/club-weather", "Club Weather")} page through ${wl}. This site reads the same public data feed the embedded display uses: temperature, wind (in knots), gusts, direction, pressure, humidity and rain.</p>
@@ -273,6 +277,10 @@ export function sourcesPage(ctx) {
 <section class="source"><h3>Pointe-aux-Anglais (CVL) – Club de Voile des Laurentides station</h3>
 <p>A Tempest weather station (station 59196) with a ${ext("https://tempestwx.com/station/59196/", "public page")} on tempestwx.com. Readings are fetched through the ${ext("https://weatherflow.github.io/Tempest/api/", "Tempest (WeatherFlow) API")} with an access token; wind arrives in metres per second and is converted to knots. If that fails, the page falls back to the weather block published on the ${ext("https://www.cvl.qc.ca", "Club de Voile des Laurentides website")}.</p>
 <p class="note">While the site was being built these readings may come from a sensor that was moved indoors or being tested.</p></section>
+
+<section class="source"><h3>Oka – Rue des Anges and Rue Tranchemontagne – Tempest stations</h3>
+<p>Two privately run Tempest weather stations in Oka: ${ext("https://tempestwx.com/station/71681/", "Rue des Anges")} (station 71681) and ${ext("https://tempestwx.com/station/168652/", "Rue Tranchemontagne")} (station 168652). They are read the same way as the CVL station, through the Tempest API, with wind converted to knots.</p>
+<p class="note">These stations belong to private owners and sit near houses, so the measured wind may be lighter than out on the open lake.</p></section>
 
 <section class="source"><h3>Sainte-Anne-de-Bellevue (Weather Station) – Environment Canada</h3>
 <p>Official real-time observations from the “STE-ANNE-DE-BELLEVUE 1” station, fetched from the ${ext("https://api.weather.gc.ca/", "MSC GeoMet API")} of Environment and Climate Change Canada (${ext("https://weather.gc.ca/", "official weather")}). Wind is the 10-minute average and gusts are the maximum in those 10 minutes (reported in km/h, converted to knots). Pressure is the station pressure, not adjusted to sea level.</p></section>

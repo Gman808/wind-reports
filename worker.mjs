@@ -48,7 +48,7 @@ export default {
     if (!recent.c || Date.now() - recent.at > REUSE_MS) {
       const store = kvStore(env.WEATHER);
       // The 24-hour histories are refreshed by the cron; on a brand-new deployment (nothing stored yet) do it once here.
-      const firstRun = (await store.get("past-eccc", null)) === null;
+      const firstRun = (await store.get("past-eccc", null)) === null || (await store.get("past-tranche", null)) === null;
       const c = await collect({ tempestToken: env.TEMPEST_TOKEN, store, refreshPast: firstRun });
       if (firstRun) await persist(c, store);
       recent = { at: Date.now(), c };
