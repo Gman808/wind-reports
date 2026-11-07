@@ -3,7 +3,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
 import { collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
-import { aboutPage, sourcesPage } from "./pages.mjs";
+import { aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
 const OUT = new URL("./site/", import.meta.url);
 
@@ -12,6 +12,7 @@ const FILES = {
   home: { en: "index.html", fr: "fr.html" },
   about: { en: "about.html", fr: "a-propos.html" },
   sources: { en: "data-sources.html", fr: "sources-de-donnees.html" },
+  other: { en: "other-wind-sites.html", fr: "autres-sites-de-vent.html" },
 };
 const href = (page, lang) => FILES[page][lang];
 
@@ -51,6 +52,7 @@ for (const lang of ["en", "fr"]) {
   await writeFile(new URL(FILES.home[lang], OUT), renderHome(c, ctx("home")));
   await writeFile(new URL(FILES.about[lang], OUT), aboutPage(ctx("about")));
   await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
+  await writeFile(new URL(FILES.other[lang], OUT), otherPage(ctx("other")));
 }
 await writeFile(new URL("data.json", OUT), JSON.stringify(c.data));
 const text = summarize(c);

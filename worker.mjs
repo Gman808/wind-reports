@@ -1,7 +1,7 @@
 // Cloudflare Worker: fetches fresh weather on every page load, and every 15 minutes (cron) records the
 // logs and sends the 6:00 / 17:00 email. Settings are in wrangler.toml; secrets are set with `wrangler secret put`.
 import { collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
-import { PAGES, ROUTES, aboutPage, sourcesPage } from "./pages.mjs";
+import { PAGES, ROUTES, aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
 // KV namespace binding (WEATHER) as the { get, put } store the library expects.
 const kvStore = (kv) => ({
@@ -43,7 +43,7 @@ export default {
 
     // About and Data Sources are fixed text: no weather data needed.
     if (route.page !== "home") {
-      return new Response((route.page === "about" ? aboutPage : sourcesPage)(ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });
+      return new Response(({ about: aboutPage, sources: sourcesPage, other: otherPage })[route.page](ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });
     }
     if (!recent.c || Date.now() - recent.at > REUSE_MS) {
       const store = kvStore(env.WEATHER);

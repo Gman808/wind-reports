@@ -2,13 +2,14 @@
 // (About, Data Sources), each in English and French.
 import { AGE_TEXT, setLang, t } from "./i18n.mjs";
 
-export const VERSION = "1.2.1"; // see CHANGELOG.md; each released version is tagged v<version> in git
+export const VERSION = "1.3"; // see CHANGELOG.md; each released version is tagged v<version> in git
 
 // Where each page lives. Worker URLs here; cli.mjs maps the same pages to file names for a local preview.
 export const PAGES = {
   home: { en: "/", fr: "/fr" },
   about: { en: "/about", fr: "/fr/a-propos" },
   sources: { en: "/data-sources", fr: "/fr/sources-de-donnees" },
+  other: { en: "/other-wind-sites", fr: "/fr/autres-sites-de-vent" },
 };
 export const ROUTES = Object.fromEntries(
   Object.entries(PAGES).flatMap(([page, langs]) => Object.entries(langs).map(([lang, path]) => [path, { page, lang }])),
@@ -93,6 +94,8 @@ tbody tr:not(.band):not(.now):hover{--cell:var(--hover)}
 /* Text pages */
 .page ul{padding-left:1.25rem}.page li{margin:.3rem 0}
 .source{border:1px solid var(--line);border-radius:10px;padding:.25rem 1rem 1rem;margin:1rem 0}
+.embed.tall{height:44rem}
+.embed{width:100%;height:28rem;border:1px solid var(--line);border-radius:10px;display:block;margin:.75rem 0}
 .foot{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--line)}
 
 @media(prefers-color-scheme:dark){
@@ -145,6 +148,7 @@ ${link(t("About"), href("about", lang))}
 ${link(t("Details from the last Hour"), `${home}#details`)}
 ${link(t("Wind Timeline"), `${home}#timeline`)}
 ${link(t("Data Sources"), href("sources", lang))}
+${link(t("Other Wind Sites"), href("other", lang))}
 </nav></details>
 <h1 class="site-title"><a href="${esc(home)}">${esc(siteTitle)}</a></h1>
 <div class="fontbtns"><button id="font-down" class="icon-btn" type="button" aria-label="${esc(t("Smaller text"))}" title="${esc(t("Smaller text"))}">A−</button><button id="font-up" class="icon-btn" type="button" aria-label="${esc(t("Larger text"))}" title="${esc(t("Larger text"))}">A+</button></div>
@@ -285,4 +289,42 @@ export function sourcesPage(ctx) {
 </ul>
 </div>`;
   return layout({ ctx, title: t("Data Sources"), body });
+}
+
+export function otherPage(ctx) {
+  const { lang } = ctx;
+  setLang(lang);
+  const windy = ext("https://www.windy.com/?45.476,-74.143,14", "Windy.com");
+  const sail = ext("https://www.sailflow.com/spot/679871", "SailFlow.com");
+  const spot = "https://www.sailflow.com/spot/679871"; // the Hudson spot page, which allows being shown inside another page
+  // Windy's own embed address for the same spot and zoom (www.windy.com itself cannot be shown inside another page).
+  const map = "https://embed.windy.com/embed2.html?lat=45.476&lon=-74.143&detailLat=45.476&detailLon=-74.143&zoom=14&level=surface&overlay=wind&product=ecmwf&marker=true&metricWind=kt&metricTemp=%C2%B0C";
+  const body = lang === "fr" ? `
+<div class="page">
+<h2>Autres sites de vent</h2>
+<p>D'autres sites utiles pour suivre le vent sur le lac des Deux Montagnes.</p>
+<section class="source"><h3>${windy}</h3>
+<p>Windy est un service gratuit de cartes météo animées. Il montre le vent, les rafales, la pluie, les nuages et les vagues sur une carte que l'on peut déplacer et agrandir, et propose plusieurs modèles de prévision (ECMWF, GFS et d'autres) ainsi qu'une prévision détaillée heure par heure pour n'importe quel point. Utile pour voir le vent arriver sur la région avant qu'il atteigne le lac.</p>
+<iframe class="embed" src="${map}" title="Windy – vent près de Hudson" loading="lazy" referrerpolicy="no-referrer"></iframe>
+<p class="note">Carte Windy centrée sur le lac (45,476, −74,143), vent en nœuds. ${ext("https://www.windy.com/?45.476,-74.143,14", "Ouvrir dans Windy")}.</p>
+</section>
+<section class="source"><h3>${sail}</h3>
+<p>SailFlow (de WeatherFlow, les créateurs de Tempest) est un service de rapports et de prévisions de vent pour les plaisanciers, les véliplanchistes et les kitesurfeurs. Voici son rapport pour la <strong>zone de navigation de Hudson</strong> : le vent actuel de stations voisines et un graphique de prévision de la vitesse, des rafales et de la direction du vent pour les prochains jours.</p>
+<iframe class="embed tall" src="${spot}" title="SailFlow – Hudson" loading="lazy" referrerpolicy="no-referrer"></iframe>
+<p class="note">${ext("https://www.sailflow.com/map#45.482,-74.099,13,1,!679871,2", "Ouvrir la carte SailFlow")}. SailFlow affiche les vitesses dans ses propres unités (réglables dans SailFlow).</p></section>
+</div>` : `
+<div class="page">
+<h2>Other Wind Sites</h2>
+<p>Other useful sites for following the wind on Lake of Two Mountains.</p>
+<section class="source"><h3>${windy}</h3>
+<p>Windy is a free animated weather-map service. It shows wind, gusts, rain, clouds and waves on a map you can drag and zoom, offers several forecast models (ECMWF, GFS and others), and gives a detailed hour-by-hour forecast for any point. It is handy for watching wind approach the region before it reaches the lake.</p>
+<iframe class="embed" src="${map}" title="Windy – wind near Hudson" loading="lazy" referrerpolicy="no-referrer"></iframe>
+<p class="note">Windy map centred on the lake (45.476, −74.143), wind in knots. ${ext("https://www.windy.com/?45.476,-74.143,14", "Open in Windy")}.</p>
+</section>
+<section class="source"><h3>${sail}</h3>
+<p>SailFlow (from WeatherFlow, the makers of Tempest) is a wind-report and forecast service for sailors, kiteboarders and windsurfers. This is its report for the <strong>Hudson Sailing Area</strong>: current wind from nearby stations, plus a forecast chart of wind speed, gusts and direction for the coming days.</p>
+<iframe class="embed tall" src="${spot}" title="SailFlow – Hudson" loading="lazy" referrerpolicy="no-referrer"></iframe>
+<p class="note">${ext("https://www.sailflow.com/map#45.482,-74.099,13,1,!679871,2", "Open the SailFlow map")}. SailFlow shows speeds in its own units (set them in SailFlow's settings).</p></section>
+</div>`;
+  return layout({ ctx, title: t("Other Wind Sites"), body });
 }

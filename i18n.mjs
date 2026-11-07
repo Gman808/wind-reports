@@ -17,6 +17,7 @@ const FR = {
   "Weather Station": "station météo",
   "About": "À propos",
   "Data Sources": "Sources des données",
+  "Other Wind Sites": "Autres sites de vent",
   "Menu": "Menu",
   "Language": "Langue",
   "Smaller text": "Texte plus petit",
