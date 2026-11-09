@@ -11,3 +11,11 @@ Anything produced from the NEON data (charts, tables, analysis, pages, write-ups
   template. The DOI comes from the NEON API (`/api/v0/products/DP4.00200.001?release=RELEASE-2026`).
 - NEON's data policy and citation guidelines: https://www.neonscience.org/data-policy
 - The downloaded files are kept in `NEON_eddy-flux/` (not committed to git; about 150 MB).
+
+## 1 Hz sample (27 July 2024)
+- Raw 20 Hz sonic data (L0', tower-top sensor, SERC, 2024-07-27) from NEON's public file store, documented in "EC L0 prime data:
+  download instructions" (https://data.neonscience.org/api/v0/documents/EC_L0P_Download_Inst_vB). Same credit as above (DP4.00200.001).
+- Wind direction oriented against the 2D wind product (DP1.00001.001, RELEASE-2026), DOI https://doi.org/10.48443/d4h5-ys70.
+  Cite it wherever the direction is shown.
+- Averaged here to 1 Hz (mean of the 20 readings in each second); direction rotated to match the 2D wind direction (about ±14°).
+- Pages that show it: `neon-sample.mjs` builds `site/neon-serc-2024-07-27*.html` locally. The raw and 1 Hz files stay in `NEON_20Hz/`.

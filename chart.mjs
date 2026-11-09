@@ -42,6 +42,7 @@ var compass=function(d){return d==null?"–":D.compass[Math.round(d/22.5)%16]+" 
 var rot=function(d){return d==null?0:90-((d+180)%360)};
 function step(n){return Math.max(1,Math.ceil(n/D.maxArrows))}
 function arrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].dir!=null?16:0}}
+var hasGust=rows.some(function(r){return r.gust!=null});
 var avg=rows.map(function(r){return {value:[r.t,r.wind==null?null:+r.wind.toFixed(1)],symbolRotate:rot(r.dir)}});
 var gust=rows.map(function(r){return [r.t,r.gust==null?null:+r.gust.toFixed(1)]});
 chart.setOption({
@@ -49,9 +50,9 @@ chart.setOption({
  tooltip:{trigger:"axis",formatter:function(ps){var i=ps[0].dataIndex,r=rows[i];
   return new Date(r.t).toLocaleTimeString(D.locale,{hour:"2-digit",minute:"2-digit",timeZone:"America/Toronto"})+"<br>"+
    D.L.wind+": <b>"+(r.wind==null?"–":r.wind.toFixed(1))+" "+D.unit+"</b><br>"+
-   D.L.gust+": <b>"+(r.gust==null?"–":r.gust.toFixed(1))+" "+D.unit+"</b><br>"+
+   (hasGust?D.L.gust+": <b>"+(r.gust==null?"–":r.gust.toFixed(1))+" "+D.unit+"</b><br>":"")+
    D.L.from+": <b>"+compass(r.dir)+"</b>"+(r.gustDir==null?"":"<br>"+D.L.gustFrom+": "+compass(r.gustDir))}},
- legend:{left:0,bottom:0,data:[D.L.wind,D.L.gust],textStyle:{color:text}},
+ legend:{left:0,bottom:0,data:hasGust?[D.L.wind,D.L.gust]:[D.L.wind],textStyle:{color:text}},
  toolbox:{right:8,feature:{dataZoom:{yAxisIndex:"none",title:{zoom:D.L.zoom,back:D.L.reset}},restore:{title:D.L.reset},saveAsImage:{title:D.L.save}},iconStyle:{borderColor:text}},
  dataZoom:[{type:"inside"}],
  xAxis:{type:"time",axisLabel:{color:text},axisLine:{lineStyle:{color:line}},splitLine:{show:false}},
@@ -60,7 +61,7 @@ chart.setOption({
  series:[
   {name:D.L.wind,type:"line",data:avg,symbol:ARROW,symbolSize:arrows(0,rows.length-1),showSymbol:true,
    itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:{opacity:0.1,color:accent},z:3},
-  {name:D.L.gust,type:"line",data:gust,showSymbol:false,itemStyle:{color:gustCol},lineStyle:{width:1,color:gustCol,type:"dashed"},z:2}
+  hasGust?{name:D.L.gust,type:"line",data:gust,showSymbol:false,itemStyle:{color:gustCol},lineStyle:{width:1,color:gustCol,type:"dashed"},z:2}:{type:"line",data:[]}
  ]});
 // Zooming in shows fewer minutes, so draw an arrow for every point; zoomed out, thin them out.
 chart.on("datazoom",function(){var o=chart.getOption().dataZoom[0],n=rows.length,a=Math.round(o.start/100*(n-1)),b=Math.round(o.end/100*(n-1));
@@ -86,7 +87,7 @@ export function chartPage(ctx, rows, opts = {}) {
 <h2>${esc(opts.title ?? T.title)}</h2>
 <p>${opts.intro ?? ""}</p>
 ${empty ? `<p class="note">${esc(T.empty)}</p>` : `<div id="wind-chart" class="chart" role="img" aria-label="${esc(T.alt)}"></div>`}
-<p class="note">${T.how}</p>
+<p class="note">${opts.how ?? T.how}</p>
 ${opts.credit ? `<p class="note">${opts.credit}</p>` : ""}
 <p class="note">${T.technique.replace("{gist}", ext("https://gist.github.com/tkurki/0bb07f29987cc2af471b5e44706b00b4", "tkurki"))
     .replace("{volkov}", ext("https://volkovlabs.io/plugins/volkovlabs-echarts-panel/", "Volkov Labs"))

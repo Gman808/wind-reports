@@ -3,3 +3,6 @@ node_modules/
 .dev.vars
 
 NEON_eddy-flux/
+NEON_20Hz/
+NEON_wind-2d/
+NEON_wind-2d.zip
