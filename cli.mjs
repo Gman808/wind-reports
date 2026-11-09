@@ -2,7 +2,9 @@
 // The live site runs from worker.mjs on Cloudflare; this stays for previewing the page without it.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
-import { collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { chartPage } from "./chart.mjs";
+import { ecccMinutes } from "./history.mjs";
 import { aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
 const OUT = new URL("./site/", import.meta.url);
@@ -13,6 +15,7 @@ const FILES = {
   about: { en: "about.html", fr: "a-propos.html" },
   sources: { en: "data-sources.html", fr: "sources-de-donnees.html" },
   other: { en: "other-wind-sites.html", fr: "autres-sites-de-vent.html" },
+  chart: { en: "wind-chart.html", fr: "graphique-du-vent.html" },
 };
 const href = (page, lang) => FILES[page][lang];
 
@@ -47,12 +50,14 @@ async function sendEmail(text, subject) {
 await mkdir(OUT, { recursive: true });
 const c = await collect({ tempestToken: process.env.TEMPEST_TOKEN, store });
 await persist(c, store);
+const minutes = (await ecccMinutes(ECCC_STATION, Date.now())) ?? [];
 for (const lang of ["en", "fr"]) {
   const ctx = (page) => ({ lang, page, href });
   await writeFile(new URL(FILES.home[lang], OUT), renderHome(c, ctx("home")));
   await writeFile(new URL(FILES.about[lang], OUT), aboutPage(ctx("about")));
   await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
   await writeFile(new URL(FILES.other[lang], OUT), otherPage(ctx("other")));
+  await writeFile(new URL(FILES.chart[lang], OUT), chartPage(ctx("chart"), minutes));
 }
 await writeFile(new URL("data.json", OUT), JSON.stringify(c.data));
 const text = summarize(c);

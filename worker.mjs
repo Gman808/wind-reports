@@ -1,6 +1,8 @@
 // Cloudflare Worker: fetches fresh weather on every page load, and every 15 minutes (cron) records the
 // logs and sends the 6:00 / 17:00 email. Settings are in wrangler.toml; secrets are set with `wrangler secret put`.
-import { collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { chartPage } from "./chart.mjs";
+import { ecccMinutes } from "./history.mjs";
 import { PAGES, ROUTES, aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
 // KV namespace binding (WEATHER) as the { get, put } store the library expects.
@@ -19,6 +21,12 @@ const REUSE_MS = 15_000;
 let recent = { at: 0, c: null };
 
 const href = (page, lang) => PAGES[page][lang];
+
+const chartOpts = (lang) => ({
+  intro: lang === "fr"
+    ? "Vent à la minute des quatre dernières heures à la station météo de Sainte-Anne-de-Bellevue (Environnement Canada), en nœuds."
+    : "One-minute wind for the last four hours from the Sainte-Anne-de-Bellevue weather station (Environment Canada), in knots.",
+});
 
 async function sendEmail(env, c) {
   if (!env.RESEND_API_KEY || !env.EMAIL_TO || !env.EMAIL_FROM) {
@@ -41,6 +49,11 @@ export default {
     const ctx = { ...route, href };
     const headers = { "content-type": "text/html; charset=utf-8" };
 
+    // The chart reads the last four hours of one-minute wind straight from Environment Canada.
+    if (route.page === "chart") {
+      const rows = await ecccMinutes(ECCC_STATION, Date.now());
+      return new Response(chartPage(ctx, rows ?? [], chartOpts(route.lang)), { headers: { ...headers, "cache-control": "public, max-age=60" } });
+    }
     // About and Data Sources are fixed text: no weather data needed.
     if (route.page !== "home") {
       return new Response(({ about: aboutPage, sources: sourcesPage, other: otherPage })[route.page](ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });

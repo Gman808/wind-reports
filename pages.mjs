@@ -2,7 +2,7 @@
 // (About, Data Sources), each in English and French.
 import { AGE_TEXT, setLang, t } from "./i18n.mjs";
 
-export const VERSION = "1.3"; // see CHANGELOG.md; each released version is tagged v<version> in git
+export const VERSION = "1.5"; // see CHANGELOG.md; each released version is tagged v<version> in git
 
 // Where each page lives. Worker URLs here; cli.mjs maps the same pages to file names for a local preview.
 export const PAGES = {
@@ -10,6 +10,7 @@ export const PAGES = {
   about: { en: "/about", fr: "/fr/a-propos" },
   sources: { en: "/data-sources", fr: "/fr/sources-de-donnees" },
   other: { en: "/other-wind-sites", fr: "/fr/autres-sites-de-vent" },
+  chart: { en: "/wind-chart", fr: "/fr/graphique-du-vent" },
 };
 export const ROUTES = Object.fromEntries(
   Object.entries(PAGES).flatMap(([page, langs]) => Object.entries(langs).map(([lang, path]) => [path, { page, lang }])),
@@ -95,6 +96,7 @@ tbody tr:not(.band):not(.now):hover{--cell:var(--hover)}
 .page ul{padding-left:1.25rem}.page li{margin:.3rem 0}
 .source{border:1px solid var(--line);border-radius:10px;padding:.25rem 1rem 1rem;margin:1rem 0}
 .embed.tall{height:44rem}
+.chart{width:100%;height:26rem;border:1px solid var(--line);border-radius:10px;margin:.75rem 0}
 .embed{width:100%;height:28rem;border:1px solid var(--line);border-radius:10px;display:block;margin:.75rem 0}
 .foot{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--line)}
 
@@ -147,6 +149,7 @@ export function layout({ ctx, title, body, extraScript = "" }) {
 ${link(t("About"), href("about", lang))}
 ${link(t("Details from the last Hour"), `${home}#details`)}
 ${link(t("Wind Timeline"), `${home}#timeline`)}
+${link(t("Wind Chart"), href("chart", lang))}
 ${link(t("Data Sources"), href("sources", lang))}
 ${link(t("Other Wind Sites"), href("other", lang))}
 </nav></details>

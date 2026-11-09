@@ -15,7 +15,7 @@ const CLUB_URL = "https://www.cvl.qc.ca";
 const TEMPEST_STATION = 59196;
 const MS_TO_KN = 1.94384;
 // Sainte-Anne-de-Bellevue: Environment Canada's public real-time observations (no key needed).
-const ECCC_STATION = "STE-ANNE-DE-BELLEVUE 1";
+export const ECCC_STATION = "STE-ANNE-DE-BELLEVUE 1";
 const KMH_TO_KN = 1 / 1.852;
 const SEND_HOURS = [6, 17]; // local hours at which an email goes out
 

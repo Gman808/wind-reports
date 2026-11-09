@@ -43,6 +43,33 @@ export async function pastEccc(station, now) {
   }
 }
 
+// Environment Canada's one-minute wind for the last few hours, oldest first, as { t, wind, gust, dir, gustDir } (kn, degrees).
+// Each minute has the average wind, the strongest gust inside that minute, and the direction of each.
+export async function ecccMinutes(station, now, hours = 4) {
+  try {
+    const url = "https://api.weather.gc.ca/collections/swob-realtime/items?" + new URLSearchParams({
+      f: "json", limit: hours * 65 + 20, sortby: "-date_tm-value", "stn_nam-value": station,
+      properties: "date_tm-value,avg_wnd_spd_10m_pst1mt,avg_wnd_dir_10m_pst1mt,max_wnd_spd_10m_pst1mt,wnd_dir_10m_pst1mt_max_spd",
+      datetime: new Date(now - hours * HOUR).toISOString().slice(0, 19) + "Z/..",
+    });
+    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const byTime = new Map();
+    for (const { properties: p } of (await res.json()).features ?? []) {
+      const t = Date.parse(p["date_tm-value"]);
+      if (p.avg_wnd_spd_10m_pst1mt == null || byTime.has(t)) continue; // the hourly record repeats a minute without 1-minute fields
+      byTime.set(t, {
+        t, wind: scale(num(p.avg_wnd_spd_10m_pst1mt), KMH_TO_KN), gust: scale(num(p.max_wnd_spd_10m_pst1mt), KMH_TO_KN),
+        dir: num(p.avg_wnd_dir_10m_pst1mt), gustDir: num(p.wnd_dir_10m_pst1mt_max_spd),
+      });
+    }
+    return [...byTime.values()].sort((a, b) => a.t - b.t);
+  } catch (err) {
+    console.warn(`One-minute wind for ${station} unavailable (${err.message}).`);
+    return null;
+  }
+}
+
 // The club's Tempest sensor, one-minute observations for the past few hours (needs TEMPEST_TOKEN).
 export async function pastTempest(token, now) {
   try {

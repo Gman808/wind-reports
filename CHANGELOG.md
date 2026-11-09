@@ -4,6 +4,11 @@ Every change to how the site looks or behaves is a numbered version. Each versio
 deployed to Cloudflare with the same tag, so any of them can be brought back (see "Going back" below).
 The version number is also shown at the bottom of the page.
 
+## 1.5 — Wind Chart
+- New page **Wind Chart** (`/wind-chart`, `/fr/graphique-du-vent`): the last four hours of one-minute wind from the Sainte-Anne-de-Bellevue
+  station as a line chart with an arrow at each point showing which way the wind blows, a dashed gust line, drag-to-zoom and tooltips.
+  Technique after tkurki's Grafana ECharts gist; drawn with Apache ECharts 5.6.0.
+
 ## 1.3 — Other Wind Sites
 - New page **Other Wind Sites** (`/other-wind-sites`, `/fr/autres-sites-de-vent`), linked from the menu: Windy.com with a
   short explanation, a link, and Windy's embedded wind map centred on the lake (45.476, -74.143, zoom 14, knots).

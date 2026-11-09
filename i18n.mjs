@@ -18,6 +18,7 @@ const FR = {
   "About": "À propos",
   "Data Sources": "Sources des données",
   "Other Wind Sites": "Autres sites de vent",
+  "Wind Chart": "Graphique du vent",
   "Menu": "Menu",
   "Language": "Langue",
   "Smaller text": "Texte plus petit",
