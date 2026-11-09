@@ -302,10 +302,17 @@ export function otherPage(ctx) {
   const spot = "https://www.sailflow.com/spot/679871"; // the Hudson spot page, which allows being shown inside another page
   // Windy's own embed address for the same spot and zoom (www.windy.com itself cannot be shown inside another page).
   const map = "https://embed.windy.com/embed2.html?lat=45.476&lon=-74.143&detailLat=45.476&detailLon=-74.143&zoom=14&level=surface&overlay=wind&product=ecmwf&marker=true&metricWind=kt&metricTemp=%C2%B0C";
+  const guruUrl = "https://wap2.windguru.cz/view.php?&sc=261655&m=3&n=&from=search&start=0&full=1";
+  const guru = ext("https://www.windguru.cz/261655", "Windguru.cz");
   const body = lang === "fr" ? `
 <div class="page">
 <h2>Autres sites de vent</h2>
 <p>D'autres sites utiles pour suivre le vent sur le lac des Deux Montagnes.</p>
+<section class="source"><h3>${guru}</h3>
+<p>Windguru est un service de prévisions de vent très utilisé par les véliplanchistes, kitesurfeurs et plaisanciers. Ce tableau donne, heure par heure, la vitesse du vent, les rafales et la direction prévues pour ce site.</p>
+<iframe class="embed tall" src="${guruUrl}" title="Windguru – prévisions" loading="lazy" referrerpolicy="no-referrer"></iframe>
+<p class="note">${ext(guruUrl, "Ouvrir le tableau Windguru")}. Windguru affiche les vitesses dans ses propres unités.</p>
+</section>
 <section class="source"><h3>${windy}</h3>
 <p>Windy est un service gratuit de cartes météo animées. Il montre le vent, les rafales, la pluie, les nuages et les vagues sur une carte que l'on peut déplacer et agrandir, et propose plusieurs modèles de prévision (ECMWF, GFS et d'autres) ainsi qu'une prévision détaillée heure par heure pour n'importe quel point. Utile pour voir le vent arriver sur la région avant qu'il atteigne le lac.</p>
 <iframe class="embed" src="${map}" title="Windy – vent près de Hudson" loading="lazy" referrerpolicy="no-referrer"></iframe>
@@ -319,6 +326,11 @@ export function otherPage(ctx) {
 <div class="page">
 <h2>Other Wind Sites</h2>
 <p>Other useful sites for following the wind on Lake of Two Mountains.</p>
+<section class="source"><h3>${guru}</h3>
+<p>Windguru is a wind forecast service widely used by windsurfers, kiteboarders and sailors. This table gives the hour-by-hour forecast wind speed, gusts and direction for this spot.</p>
+<iframe class="embed tall" src="${guruUrl}" title="Windguru – forecast" loading="lazy" referrerpolicy="no-referrer"></iframe>
+<p class="note">${ext(guruUrl, "Open the Windguru table")}. Windguru shows speeds in its own units.</p>
+</section>
 <section class="source"><h3>${windy}</h3>
 <p>Windy is a free animated weather-map service. It shows wind, gusts, rain, clouds and waves on a map you can drag and zoom, offers several forecast models (ECMWF, GFS and others), and gives a detailed hour-by-hour forecast for any point. It is handy for watching wind approach the region before it reaches the lake.</p>
 <iframe class="embed" src="${map}" title="Windy – wind near Hudson" loading="lazy" referrerpolicy="no-referrer"></iframe>

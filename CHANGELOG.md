@@ -5,6 +5,9 @@ deployed to Cloudflare with the same tag, so any of them can be brought back (se
 The version number is also shown at the bottom of the page.
 
 ## 1.5 — Wind Chart
+- **Other Wind Sites** now starts with the Windguru forecast table for the spot (embedded above Windy).
+- `analyze.mjs`: wind-shift and gust analysis of the NEON 1 Hz sample (not part of the site).
+
 - New page **Wind Chart** (`/wind-chart`, `/fr/graphique-du-vent`): the last four hours of one-minute wind from the Sainte-Anne-de-Bellevue
   station as a line chart with an arrow at each point showing which way the wind blows, a dashed gust line, drag-to-zoom and tooltips.
   Technique after tkurki's Grafana ECharts gist; drawn with Apache ECharts 5.6.0.
