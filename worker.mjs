@@ -3,7 +3,10 @@
 import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
 import { ecccMinutes } from "./history.mjs";
+import { chartRows } from "./logger-core.mjs";
 import { PAGES, ROUTES, aboutPage, otherPage, sourcesPage } from "./pages.mjs";
+
+export { WindLogger } from "./logger.mjs";
 
 // KV namespace binding (WEATHER) as the { get, put } store the library expects.
 const kvStore = (kv) => ({
@@ -41,9 +44,45 @@ async function sendEmail(env, c) {
   console.log(res.ok ? "Email sent." : `Email failed: HTTP ${res.status} ${await res.text()}`);
 }
 
+const LOG_PAGES = { "/wind-log": "en", "/fr/journal-du-vent": "fr" };
+const logOpts = (lang) => ({
+  title: lang === "fr" ? "Journal du vent Tempest" : "Tempest Wind Log",
+  intro: lang === "fr"
+    ? "Vent mesuré environ toutes les 3 secondes par notre station Tempest sur l'eau (quatre dernières heures), en nœuds. La ligne orange est la plus forte mesure dans la minute environnante."
+    : "Wind measured about every 3 seconds by our Tempest station on the water (last four hours), in knots. The orange line is the strongest reading within the surrounding minute.",
+});
+
+// /api/logger/*: status and csv are open; start and stop need the LOGGER_KEY secret as a bearer token.
+async function loggerApi(request, env, url) {
+  if (!env.LOGGER) return new Response("Logger is not set up", { status: 404 });
+  const log = env.LOGGER.get(env.LOGGER.idFromName("tempest"));
+  const action = url.pathname.slice("/api/logger/".length);
+  const json = (o) => new Response(JSON.stringify(o), { headers: { "content-type": "application/json" } });
+  if (action === "status") return json(await log.status());
+  if (action === "csv") return new Response(await log.csv(Number(url.searchParams.get("hours")) || 4), { headers: { "content-type": "text/csv" } });
+  if (action === "start" || action === "stop") {
+    if (request.method !== "POST") return new Response("Use POST", { status: 405 });
+    if (!env.LOGGER_KEY || request.headers.get("authorization") !== `Bearer ${env.LOGGER_KEY}`) return new Response("Unauthorized", { status: 401 });
+    try {
+      return json(action === "start" ? await log.start(Number(url.searchParams.get("hours")) || 4) : await log.stop());
+    } catch (e) {
+      return new Response(e.message, { status: 502 });
+    }
+  }
+  return new Response("Not found", { status: 404 });
+}
+
 export default {
   async fetch(request, env) {
-    const { pathname } = new URL(request.url);
+    const url = new URL(request.url);
+    const { pathname } = url;
+    if (pathname.startsWith("/api/logger/")) return loggerApi(request, env, url);
+    if (LOG_PAGES[pathname]) {
+      const lang = LOG_PAGES[pathname];
+      const obs = env.LOGGER ? await env.LOGGER.get(env.LOGGER.idFromName("tempest")).obs(4) : [];
+      const page = chartPage({ lang, page: "chart", href }, obs.length ? chartRows(obs) : [], logOpts(lang));
+      return new Response(page, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=15" } });
+    }
     const route = ROUTES[pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname];
     if (!route) return new Response("Not found", { status: 404 });
     const ctx = { ...route, href };

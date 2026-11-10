@@ -11,3 +11,17 @@ crons = ["13,28,43,58 * * * *"]
 [[kv_namespaces]]
 binding = "WEATHER"
 id = "68fa13e417e24cc4822b5dd8b431ea01"
+
+# The wind logger: a Durable Object (SQLite) that records a Tempest's rapid wind (about every 3 s) while a session is on.
+# Settings: LOGGER_STATION_ID (the station to log; or LOGGER_DEVICE_ID for the Tempest device directly).
+# Secrets: TEMPEST_TOKEN (must be authorized for that station) and LOGGER_KEY (bearer token for /api/logger/start and /stop).
+[[durable_objects.bindings]]
+name = "LOGGER"
+class_name = "WindLogger"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WindLogger"]
+
+[vars]
+LOGGER_STATION_ID = "59196"
