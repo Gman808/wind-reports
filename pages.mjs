@@ -11,6 +11,7 @@ export const PAGES = {
   sources: { en: "/data-sources", fr: "/fr/sources-de-donnees" },
   other: { en: "/other-wind-sites", fr: "/fr/autres-sites-de-vent" },
   chart: { en: "/wind-chart", fr: "/fr/graphique-du-vent" },
+  chart2: { en: "/wind-chart-2", fr: "/fr/graphique-du-vent-2" },
   shifts: { en: "/wind-shifts", fr: "/fr/changements-de-vent" },
 };
 export const ROUTES = Object.fromEntries(
@@ -151,6 +152,7 @@ ${link(t("About"), href("about", lang))}
 ${link(t("Details from the last Hour"), `${home}#details`)}
 ${link(t("Wind Timeline"), `${home}#timeline`)}
 ${link(t("Wind Chart"), href("chart", lang))}
+${link(t("Wind Chart 2"), href("chart2", lang))}
 ${link(t("Wind Shift Table"), href("shifts", lang))}
 ${link(t("Data Sources"), href("sources", lang))}
 ${link(t("Other Wind Sites"), href("other", lang))}

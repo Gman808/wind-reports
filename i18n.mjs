@@ -19,6 +19,8 @@ const FR = {
   "Data Sources": "Sources des données",
   "Other Wind Sites": "Autres sites de vent",
   "Wind Chart": "Graphique du vent",
+  "Wind Chart 2": "Graphique du vent 2",
+  "Lulls": "Accalmies",
   "Wind Shift Table": "Tableau des changements de direction",
   "Menu": "Menu",
   "Language": "Langue",

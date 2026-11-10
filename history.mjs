@@ -70,6 +70,26 @@ export async function ecccMinutes(station, now, hours = 4) {
   }
 }
 
+// The club's Tempest sensor, one reading per minute for the last `hours` hours (needs a token): lull, average and gust speed
+// (kn) and the minute's average direction, which also stands in for the gust and lull directions (the Tempest reports no others).
+export async function tempestMinutes(token, now, hours = 4) {
+  try {
+    if (!token) throw new Error("TEMPEST_TOKEN is not set");
+    const url = `https://swd.weatherflow.com/swd/rest/observations/device/${TEMPEST_DEVICE}?` + new URLSearchParams({
+      time_start: Math.floor((now - hours * HOUR) / 1000), time_end: Math.floor(now / 1000), token,
+    });
+    const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // obs_st columns: 0 time, 1 wind lull (m/s), 2 wind average (m/s), 3 wind gust (m/s), 4 wind direction
+    return ((await res.json()).obs ?? []).filter((o) => o[2] != null).map((o) => ({
+      t: o[0] * 1000, lull: scale(o[1], MS_TO_KN), wind: scale(o[2], MS_TO_KN), gust: scale(o[3], MS_TO_KN), dir: o[4], gustDir: o[4], lullDir: o[4],
+    }));
+  } catch (err) {
+    console.warn(`One-minute Tempest wind unavailable (${err.message}).`);
+    return null;
+  }
+}
+
 // The club's Tempest sensor, one-minute observations for the past few hours (needs TEMPEST_TOKEN).
 export async function pastTempest(token, now) {
   try {

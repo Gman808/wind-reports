@@ -3,7 +3,7 @@
 import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
 import { shiftPage } from "./shift-table.mjs";
-import { ecccMinutes } from "./history.mjs";
+import { ecccMinutes, tempestMinutes } from "./history.mjs";
 import { chartRows } from "./logger-core.mjs";
 import { PAGES, ROUTES, aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
@@ -32,6 +32,16 @@ const chartOpts = (lang) => ({
     : "One-minute wind for the last four hours from the Sainte-Anne-de-Bellevue weather station (Environment Canada), in knots.",
 });
 
+const chart2Opts = (lang) => ({
+  title: lang === "fr" ? "Graphique du vent 2" : "Wind Chart 2",
+  intro: lang === "fr"
+    ? "Rafales, vitesse moyenne et accalmies à la minute des quatre dernières heures à la station Tempest du Club de voile des Laurentides, en nœuds."
+    : "Gusts, average wind speed and lulls, one value per minute for the last four hours, from the Tempest station at Club de Voile des Laurentides, in knots.",
+  how: lang === "fr"
+    ? "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne bleu foncé est la vitesse moyenne de la minute, la ligne bleu pâle est la rafale (la plus forte mesure de la minute) et la ligne verte est l'accalmie (la plus faible). Le Tempest ne donne que la direction moyenne de la minute : les trois flèches ont donc la même direction. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails."
+    : "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The dark-blue line is the average wind speed for the minute, the light-blue line is the gust (the strongest reading in the minute) and the green line is the lull (the weakest). The Tempest reports only the minute's average direction, so all three arrows point the same way. Drag across the chart to zoom, and hover or tap a point for the details.",
+});
+
 async function sendEmail(env, c) {
   if (!env.RESEND_API_KEY || !env.EMAIL_TO || !env.EMAIL_FROM) {
     console.log("Email skipped: RESEND_API_KEY, EMAIL_TO and EMAIL_FROM are not all set.");
@@ -49,8 +59,8 @@ const LOG_PAGES = { "/wind-log": "en", "/fr/journal-du-vent": "fr" };
 const logOpts = (lang) => ({
   title: lang === "fr" ? "Journal du vent Tempest" : "Tempest Wind Log",
   intro: lang === "fr"
-    ? "Vent mesuré environ toutes les 3 secondes par notre station Tempest sur l'eau (quatre dernières heures), en nœuds. La ligne bleu foncé est la plus forte mesure dans la minute environnante."
-    : "Wind measured about every 3 seconds by our Tempest station on the water (last four hours), in knots. The dark-blue line is the strongest reading within the surrounding minute.",
+    ? "Vent mesuré environ toutes les 3 secondes par notre station Tempest sur l'eau (quatre dernières heures), en nœuds. La ligne bleu pâle est la plus forte mesure dans la minute environnante."
+    : "Wind measured about every 3 seconds by our Tempest station on the water (last four hours), in knots. The light-blue line is the strongest reading within the surrounding minute.",
 });
 
 // /api/logger/*: status and csv are open; start and stop need the LOGGER_KEY secret as a bearer token.
@@ -93,6 +103,11 @@ export default {
     if (route.page === "chart") {
       const rows = await ecccMinutes(ECCC_STATION, Date.now());
       return new Response(chartPage(ctx, rows ?? [], chartOpts(route.lang)), { headers: { ...headers, "cache-control": "public, max-age=60" } });
+    }
+    // Wind Chart 2: the club's Tempest, one-minute lulls, averages and gusts for the last four hours.
+    if (route.page === "chart2") {
+      const rows = await tempestMinutes(env.TEMPEST_TOKEN, Date.now(), 4);
+      return new Response(chartPage(ctx, rows ?? [], chart2Opts(route.lang)), { headers: { ...headers, "cache-control": "public, max-age=60" } });
     }
     // The shift table reads the last 12 hours of one-minute wind from Environment Canada.
     if (route.page === "shifts") {

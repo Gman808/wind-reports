@@ -12,16 +12,16 @@ const ext = (url, label) => `<a href="${url}" target="_blank" rel="noopener">${l
 const TEXT = {
   en: {
     title: "Wind Chart", alt: "Wind speed and direction over time", empty: "No one-minute readings are available right now.",
-    gustFrom: "Gust from", zoom: "Zoom", reset: "Reset", save: "Save as image",
+    gustFrom: "Gust from", lullFrom: "Lull from", zoom: "Zoom", reset: "Reset", save: "Save as image",
     noChart: "The chart could not be loaded. Check your connection and refresh the page.",
-    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid blue line and arrows are the average wind speed for the minute; the solid dark-blue line and arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
+    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid dark-blue line and arrows are the average wind speed for the minute; the solid light-blue line and arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
     technique: 'The arrow-on-a-line chart follows the technique shared by {gist} for the {volkov} panel in Grafana, drawn here with {echarts}.',
   },
   fr: {
     title: "Graphique du vent", alt: "Vitesse et direction du vent dans le temps", empty: "Aucune mesure à la minute n'est disponible pour le moment.",
-    gustFrom: "Rafale de", zoom: "Zoom", reset: "Réinitialiser", save: "Enregistrer l'image",
+    gustFrom: "Rafale de", lullFrom: "Accalmie de", zoom: "Zoom", reset: "Réinitialiser", save: "Enregistrer l'image",
     noChart: "Le graphique n'a pas pu être chargé. Vérifiez votre connexion et actualisez la page.",
-    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleue et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pleine bleu foncé et ses flèches sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
+    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleu foncé et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pleine bleu pâle et ses flèches sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
     technique: 'Le graphique à flèches suit la technique partagée par {gist} pour le panneau {volkov} de Grafana, dessiné ici avec {echarts}.',
   },
 };
@@ -32,7 +32,7 @@ const CHART_SCRIPT = `
 var el=document.getElementById("wind-chart");
 if(!window.echarts){el.outerHTML='<p class="note">'+D.L.noChart+'</p>';return}
 var css=getComputedStyle(document.documentElement),col=function(n){return css.getPropertyValue(n).trim()};
-var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#72aef0",gustCol="#2f4fb8";
+var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#2f4fb8",gustCol="#72aef0",lullCol="#1f9d8b";
 // An arrow that points right (east) at rotation 0.
 var ARROW="path://M0,6 L14,6 L14,1 L24,10 L14,19 L14,14 L0,14 Z";
 var rows=D.rows,chart=echarts.init(el);
@@ -42,10 +42,12 @@ var compass=function(d){return d==null?"–":D.compass[Math.round(d/22.5)%16]+" 
 var rot=function(d){return d==null?0:90-((d+180)%360)};
 function step(n){return Math.max(1,Math.ceil(n/D.maxArrows))}
 function arrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].dir!=null?16:0}}
-var hasGust=rows.some(function(r){return r.gust!=null});
+var hasGust=rows.some(function(r){return r.gust!=null}),hasLull=rows.some(function(r){return r.lull!=null});
 var avg=rows.map(function(r){return {value:[r.t,r.wind==null?null:+r.wind.toFixed(1)],symbolRotate:rot(r.dir)}});
 var gust=rows.map(function(r){return {value:[r.t,r.gust==null?null:+r.gust.toFixed(1)],symbolRotate:rot(r.gustDir)}});
-// Blue-purple arrows on the gust line, thinned like the wind arrows; none where there is no gust direction.
+var lull=rows.map(function(r){return {value:[r.t,r.lull==null?null:+r.lull.toFixed(1)],symbolRotate:rot(r.lullDir)}});
+// Arrows on the gust and lull lines, thinned like the wind arrows; none where there is no direction.
+function lullArrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].lullDir!=null?16:0}}
 function gustArrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].gustDir!=null?16:0}}
 chart.setOption({
  backgroundColor:"transparent",textStyle:{color:text},
@@ -54,8 +56,10 @@ chart.setOption({
    D.L.wind+": <b>"+(r.wind==null?"–":r.wind.toFixed(1))+" "+D.unit+"</b><br>"+
    D.L.from+": <b>"+compass(r.dir)+"</b>"+
    (hasGust?"<br>"+D.L.gust+": <b>"+(r.gust==null?"–":r.gust.toFixed(1))+" "+D.unit+"</b>":"")+
-   (r.gustDir==null?"":"<br>"+D.L.gustFrom+": <b>"+compass(r.gustDir)+"</b>")}},
- legend:{left:0,bottom:0,data:hasGust?[D.L.wind,D.L.gust]:[D.L.wind],textStyle:{color:text}},
+   (r.gustDir==null?"":"<br>"+D.L.gustFrom+": <b>"+compass(r.gustDir)+"</b>")+
+   (hasLull?"<br>"+D.L.lull+": <b>"+(r.lull==null?"–":r.lull.toFixed(1))+" "+D.unit+"</b>":"")+
+   (r.lullDir==null?"":"<br>"+D.L.lullFrom+": <b>"+compass(r.lullDir)+"</b>")}},
+ legend:{left:0,bottom:0,data:[D.L.wind].concat(hasGust?[D.L.gust]:[],hasLull?[D.L.lull]:[]),textStyle:{color:text}},
  toolbox:{right:8,feature:{dataZoom:{yAxisIndex:"none",title:{zoom:D.L.zoom,back:D.L.reset}},restore:{title:D.L.reset},saveAsImage:{title:D.L.save}},iconStyle:{borderColor:text}},
  dataZoom:[{type:"inside"}],
  xAxis:{type:"time",axisLabel:{color:text},axisLine:{lineStyle:{color:line}},splitLine:{show:false}},
@@ -64,22 +68,23 @@ chart.setOption({
  series:[
   {name:D.L.wind,type:"line",data:avg,symbol:ARROW,symbolSize:arrows(0,rows.length-1),showSymbol:true,
    itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:{opacity:0.25,color:accent},z:3},
-  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},areaStyle:{opacity:0.22,color:gustCol},z:2}:{type:"line",data:[]}
+  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},areaStyle:{opacity:0.22,color:gustCol},z:2}:{type:"line",data:[]},
+  hasLull?{name:D.L.lull,type:"line",data:lull,symbol:ARROW,symbolSize:lullArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:lullCol},lineStyle:{width:1.5,color:lullCol},z:4}:{type:"line",data:[]}
  ]});
 // Zooming in shows fewer minutes, so draw an arrow for every point; zoomed out, thin them out.
 chart.on("datazoom",function(){var o=chart.getOption().dataZoom[0],n=rows.length,a=Math.round(o.start/100*(n-1)),b=Math.round(o.end/100*(n-1));
- chart.setOption({series:hasGust?[{symbolSize:arrows(a,b)},{symbolSize:gustArrows(a,b)}]:[{symbolSize:arrows(a,b)}]})});
+ chart.setOption({series:[{symbolSize:arrows(a,b)},{symbolSize:gustArrows(a,b)},{symbolSize:lullArrows(a,b)}]})});
 window.addEventListener("resize",function(){chart.resize()});
 })();`;
 
-// rows: [{ t (ms), wind, gust, dir, gustDir }] oldest first, wind in knots. ctx = { lang, page, href }.
+// rows: [{ t (ms), wind, gust, dir, gustDir, lull?, lullDir? }] oldest first, speeds in knots (lull and lullDir are optional). ctx = { lang, page, href }.
 // opts.source / opts.credit: HTML for the "Data" paragraph and an extra credit line.
 export function chartPage(ctx, rows, opts = {}) {
   const { lang } = ctx;
   setLang(lang);
   const T = TEXT[lang];
   const L = {
-    wind: t("Wind"), gust: t("Gusts"), from: t("From"), gustFrom: T.gustFrom, zoom: T.zoom, reset: T.reset, save: T.save, noChart: T.noChart,
+    wind: t("Wind"), gust: t("Gusts"), lull: t("Lulls"), from: t("From"), gustFrom: T.gustFrom, lullFrom: T.lullFrom, zoom: T.zoom, reset: T.reset, save: T.save, noChart: T.noChart,
   };
   const compass = [...Array(16)].map((_, i) => compassPoint(i));
   const data = { rows, L, compass, unit: KN(), locale: lang === "fr" ? "fr-CA" : "en-CA", maxArrows: 48, fine: !!opts.fine };
