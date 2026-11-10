@@ -32,7 +32,7 @@ const CHART_SCRIPT = `
 var el=document.getElementById("wind-chart");
 if(!window.echarts){el.outerHTML='<p class="note">'+D.L.noChart+'</p>';return}
 var css=getComputedStyle(document.documentElement),col=function(n){return css.getPropertyValue(n).trim()};
-var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#2f4fb8",gustCol="#72aef0",lullCol="#1c3f9a";
+var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#2f4fb8",gustCol="#72aef0",lullCol="#2c5fc4";
 // An arrow that points right (east) at rotation 0.
 var ARROW="path://M0,6 L14,6 L14,1 L24,10 L14,19 L14,14 L0,14 Z";
 var rows=D.rows,chart=echarts.init(el);
