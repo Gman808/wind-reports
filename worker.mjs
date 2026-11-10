@@ -2,6 +2,7 @@
 // logs and sends the 6:00 / 17:00 email. Settings are in wrangler.toml; secrets are set with `wrangler secret put`.
 import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
+import { shiftPage } from "./shift-table.mjs";
 import { ecccMinutes } from "./history.mjs";
 import { chartRows } from "./logger-core.mjs";
 import { PAGES, ROUTES, aboutPage, otherPage, sourcesPage } from "./pages.mjs";
@@ -92,6 +93,11 @@ export default {
     if (route.page === "chart") {
       const rows = await ecccMinutes(ECCC_STATION, Date.now());
       return new Response(chartPage(ctx, rows ?? [], chartOpts(route.lang)), { headers: { ...headers, "cache-control": "public, max-age=60" } });
+    }
+    // The shift table reads the last 12 hours of one-minute wind from Environment Canada.
+    if (route.page === "shifts") {
+      const rows = await ecccMinutes(ECCC_STATION, Date.now(), 12);
+      return new Response(shiftPage(ctx, rows ?? []), { headers: { ...headers, "cache-control": "public, max-age=60" } });
     }
     // About and Data Sources are fixed text: no weather data needed.
     if (route.page !== "home") {

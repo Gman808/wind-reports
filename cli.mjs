@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
 import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
+import { shiftPage } from "./shift-table.mjs";
 import { ecccMinutes } from "./history.mjs";
 import { aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
@@ -16,6 +17,7 @@ const FILES = {
   sources: { en: "data-sources.html", fr: "sources-de-donnees.html" },
   other: { en: "other-wind-sites.html", fr: "autres-sites-de-vent.html" },
   chart: { en: "wind-chart.html", fr: "graphique-du-vent.html" },
+  shifts: { en: "wind-shifts.html", fr: "changements-de-vent.html" },
 };
 const href = (page, lang) => FILES[page][lang];
 
@@ -51,6 +53,7 @@ await mkdir(OUT, { recursive: true });
 const c = await collect({ tempestToken: process.env.TEMPEST_TOKEN, store });
 await persist(c, store);
 const minutes = (await ecccMinutes(ECCC_STATION, Date.now())) ?? [];
+const shiftRows = (await ecccMinutes(ECCC_STATION, Date.now(), 12)) ?? [];
 for (const lang of ["en", "fr"]) {
   const ctx = (page) => ({ lang, page, href });
   await writeFile(new URL(FILES.home[lang], OUT), renderHome(c, ctx("home")));
@@ -58,6 +61,7 @@ for (const lang of ["en", "fr"]) {
   await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
   await writeFile(new URL(FILES.other[lang], OUT), otherPage(ctx("other")));
   await writeFile(new URL(FILES.chart[lang], OUT), chartPage(ctx("chart"), minutes));
+  await writeFile(new URL(FILES.shifts[lang], OUT), shiftPage(ctx("shifts"), shiftRows));
 }
 await writeFile(new URL("data.json", OUT), JSON.stringify(c.data));
 const text = summarize(c);
