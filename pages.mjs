@@ -245,7 +245,7 @@ export function sourcesPage(ctx) {
   const body = lang === "fr" ? `
 <div class="page">
 <h2>Sources des données</h2>
-<p>Chaque chiffre de cette page vient de l'une des quatre sources ci-dessous. Les trois premières sont des <strong>mesures</strong> de stations; la quatrième est un <strong>modèle de prévision</strong>.</p>
+<p>Chaque chiffre de cette page vient de l'une des quatre sources ci-dessous. Les trois premières sont des <strong>mesures</strong> de stations; la quatrième est un <strong>modèle de prévision</strong>. Une cinquième source, la tour de recherche NEON (SERC), ne sert qu'à des <strong>données d'essai</strong> sur les pages Graphique du vent 2 et Tableau des changements de direction.</p>
 
 <section class="source"><h3>Hudson (HYC) – station météo du Hudson Yacht Club</h3>
 <p>Une station Davis du Hudson Yacht Club, affichée sur la page ${ext("https://hudsonyachtclub.com/club-weather", "Météo du club")} grâce à ${wl}. Ce site lit le même flux public que l'affichage intégré : température, vent (en nœuds), rafales, direction, pression, humidité et pluie.</p>
@@ -257,6 +257,10 @@ export function sourcesPage(ctx) {
 
 <section class="source"><h3>Sainte-Anne-de-Bellevue (station météo) – Environnement Canada</h3>
 <p>Observations officielles en temps réel de la station « STE-ANNE-DE-BELLEVUE 1 », obtenues par l'${ext("https://api.weather.gc.ca/", "API MSC GeoMet")} d'Environnement et Changement climatique Canada (${ext("https://weather.gc.ca/", "météo officielle")}). Le vent est la moyenne sur 10 minutes et la rafale est le maximum de ces 10 minutes (en km/h, convertis en nœuds). La pression est celle de la station, non ramenée au niveau de la mer.</p></section>
+
+<section class="source"><h3>SERC – tour NEON, Smithsonian Environmental Research Center (Maryland)</h3>
+<p>Des mesures du vent à 20 fois par seconde de l'anémomètre sonique du haut (environ 61,6 m) de la tour du ${ext("https://www.neonscience.org/", "NEON (National Ecological Observatory Network)")} au Smithsonian Environmental Research Center, au Maryland. Ce site n'utilise que le <strong>11 juillet 2024</strong> (et, sur certaines pages d'essai, le 27 juillet 2024), moyenné à 1 mesure par seconde, puis à la minute ou à 30 secondes. Ce sont des <strong>données d'essai</strong> pour l'analyse des changements de direction et des rafales : ce n'est pas le vent sur le lac des Deux Montagnes.</p>
+<p class="note">NEON (National Ecological Observatory Network). Bundled data products - eddy covariance (DP4.00200.001), RELEASE-2026. Jeu de données consulté à ${ext("https://data.neonscience.org/data-products/DP4.00200.001/RELEASE-2026", "data.neonscience.org")} le 9 novembre 2026. Données archivées à ${ext("https://doi.org/10.48443/xymh-2v16", "https://doi.org/10.48443/xymh-2v16")}. La direction du vent a été orientée à l'aide de NEON, 2D wind speed and direction (DP1.00001.001), RELEASE-2026, ${ext("https://doi.org/10.48443/d4h5-ys70", "https://doi.org/10.48443/d4h5-ys70")} (écart typique ±14°, la direction est donc approximative).</p></section>
 
 <section class="source"><h3>Prévisions – Open-Meteo</h3>
 <p>${ext("https://open-meteo.com/", "Open-Meteo")} est un service gratuit de prévisions. Il fournit le <strong>vent prévu</strong> heure par heure à 10 m au-dessus du sol pour les trois endroits, les <strong>prévisions sur cinq jours</strong> pour Hudson et, lorsque la station de Hudson ne transmet rien, les conditions actuelles de remplacement. Le modèle est choisi par Open-Meteo pour la région (lors de nos essais, il correspondait au modèle GFS de la NOAA).</p>
@@ -271,7 +275,7 @@ export function sourcesPage(ctx) {
 </div>` : `
 <div class="page">
 <h2>Data Sources</h2>
-<p>Every number on this page comes from one of the four sources below. The first three are station <strong>measurements</strong>; the fourth is a <strong>forecast model</strong>.</p>
+<p>Every number on this page comes from one of the four sources below. The first three are station <strong>measurements</strong>; the fourth is a <strong>forecast model</strong>. A fifth source, the NEON research tower (SERC), is used only for <strong>test data</strong> on the Wind Chart 2 and Wind Shift Table pages.</p>
 
 <section class="source"><h3>Hudson (HYC) – Hudson Yacht Club weather station</h3>
 <p>A Davis weather station run by the Hudson Yacht Club and shown on the club's ${ext("https://hudsonyachtclub.com/club-weather", "Club Weather")} page through ${wl}. This site reads the same public data feed the embedded display uses: temperature, wind (in knots), gusts, direction, pressure, humidity and rain.</p>
@@ -283,6 +287,10 @@ export function sourcesPage(ctx) {
 
 <section class="source"><h3>Sainte-Anne-de-Bellevue (Weather Station) – Environment Canada</h3>
 <p>Official real-time observations from the “STE-ANNE-DE-BELLEVUE 1” station, fetched from the ${ext("https://api.weather.gc.ca/", "MSC GeoMet API")} of Environment and Climate Change Canada (${ext("https://weather.gc.ca/", "official weather")}). Wind is the 10-minute average and gusts are the maximum in those 10 minutes (reported in km/h, converted to knots). Pressure is the station pressure, not adjusted to sea level.</p></section>
+
+<section class="source"><h3>SERC – NEON tower, Smithsonian Environmental Research Center (Maryland)</h3>
+<p>Wind measurements taken 20 times a second by the top sonic anemometer (about 61.6 m) on the ${ext("https://www.neonscience.org/", "NEON (National Ecological Observatory Network)")} tower at the Smithsonian Environmental Research Center in Maryland. This site uses only <strong>11 July 2024</strong> (and, on some test pages, 27 July 2024), averaged to 1 reading per second, then to a minute or 30 seconds. It is <strong>test data</strong> for the wind-shift and gust analysis, not wind on Lake of Two Mountains.</p>
+<p class="note">NEON (National Ecological Observatory Network). Bundled data products - eddy covariance (DP4.00200.001), RELEASE-2026. Dataset accessed from ${ext("https://data.neonscience.org/data-products/DP4.00200.001/RELEASE-2026", "data.neonscience.org")} on November 9, 2026. Data archived at ${ext("https://doi.org/10.48443/xymh-2v16", "https://doi.org/10.48443/xymh-2v16")}. Wind direction was oriented using NEON, 2D wind speed and direction (DP1.00001.001), RELEASE-2026, ${ext("https://doi.org/10.48443/d4h5-ys70", "https://doi.org/10.48443/d4h5-ys70")} (typical difference ±14°, so direction is approximate).</p></section>
 
 <section class="source"><h3>Forecasts – Open-Meteo</h3>
 <p>${ext("https://open-meteo.com/", "Open-Meteo")} is a free weather forecast service. It provides the hourly <strong>Forecasted Wind</strong> at 10 m above ground for all three locations, the <strong>Five Day Forecast</strong> for Hudson, and the stand-in current conditions when Hudson's station reports nothing. Open-Meteo chooses the model for the area (in our tests it matched NOAA's GFS model).</p>
