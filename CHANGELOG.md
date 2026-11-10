@@ -8,7 +8,7 @@ The version number is also shown at the bottom of the page.
 - A Durable Object (`logger.mjs`, SQLite) that records a Tempest's rapid wind (about every 3 s) over WeatherFlow's WebSocket for a session
   of 1 to 24 hours (default 4). Control: `POST /api/logger/start?hours=4` and `/api/logger/stop` with `Authorization: Bearer <LOGGER_KEY>`;
   `GET /api/logger/status` and `/api/logger/csv?hours=4` are open.
-- A page for the log, `/wind-log` and `/fr/journal-du-vent`, using the Wind Chart (not in the menu): blue wind line and arrows, blue-purple gust
+- A page for the log, `/wind-log` and `/fr/journal-du-vent`, using the Wind Chart (not in the menu): blue wind line and arrows, dark-blue gust
   line and arrows (strongest reading within the surrounding minute), last four hours.
 - Setup: `wrangler secret put LOGGER_KEY`, set `LOGGER_STATION_ID` in wrangler.toml to the on-the-water station (TEMPEST_TOKEN must be
   authorized for it; the default 59196 is the indoor CVL sensor, which reads zero wind). Pure helpers are in `logger-core.mjs`.
@@ -16,7 +16,7 @@ The version number is also shown at the bottom of the page.
 ## 1.5 — Wind Chart
 - **Other Wind Sites** now starts with the Windguru forecast table for the spot (embedded above Windy).
 - `analyze.mjs`: wind-shift and gust analysis of the NEON 1 Hz sample (not part of the site).
-- Wind Chart: blue-purple solid gust line with arrows (gust direction), and the chart is twice as tall (52 rem) so the gap between wind and gusts is easier to see.
+- Wind Chart: dark-blue solid gust line with arrows (gust direction), and the chart is twice as tall (52 rem) so the gap between wind and gusts is easier to see.
 - `node neon-sample.mjs 2024-07-11 20hz` builds a ten-minute page of the raw 20 Hz samples (no averaging) around the strongest gust; the tooltip then shows seconds.
 - `node neon-sample.mjs 2024-07-11 last-hour` builds the 1 Hz page for only the last hour of the four-hour window.
 - New page **Wind Shift Table** (`/wind-shifts`, `/fr/changements-de-vent`, in the menu): one column from the live one-minute wind at Sainte-Anne-de-Bellevue (last 12 hours), with pull-down settings for shift size, time window and minutes of data, plus average shift duration and veer-back time. (`shift-table.mjs`; replaces the two-column NEON test table.)

@@ -49,8 +49,8 @@ const LOG_PAGES = { "/wind-log": "en", "/fr/journal-du-vent": "fr" };
 const logOpts = (lang) => ({
   title: lang === "fr" ? "Journal du vent Tempest" : "Tempest Wind Log",
   intro: lang === "fr"
-    ? "Vent mesuré environ toutes les 3 secondes par notre station Tempest sur l'eau (quatre dernières heures), en nœuds. La ligne violet bleuté est la plus forte mesure dans la minute environnante."
-    : "Wind measured about every 3 seconds by our Tempest station on the water (last four hours), in knots. The blue-purple line is the strongest reading within the surrounding minute.",
+    ? "Vent mesuré environ toutes les 3 secondes par notre station Tempest sur l'eau (quatre dernières heures), en nœuds. La ligne bleu foncé est la plus forte mesure dans la minute environnante."
+    : "Wind measured about every 3 seconds by our Tempest station on the water (last four hours), in knots. The dark-blue line is the strongest reading within the surrounding minute.",
 });
 
 // /api/logger/*: status and csv are open; start and stop need the LOGGER_KEY secret as a bearer token.

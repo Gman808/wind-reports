@@ -14,14 +14,14 @@ const TEXT = {
     title: "Wind Chart", alt: "Wind speed and direction over time", empty: "No one-minute readings are available right now.",
     gustFrom: "Gust from", zoom: "Zoom", reset: "Reset", save: "Save as image",
     noChart: "The chart could not be loaded. Check your connection and refresh the page.",
-    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid blue line and arrows are the average wind speed for the minute; the solid blue-purple line and arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
+    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid blue line and arrows are the average wind speed for the minute; the solid dark-blue line and arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
     technique: 'The arrow-on-a-line chart follows the technique shared by {gist} for the {volkov} panel in Grafana, drawn here with {echarts}.',
   },
   fr: {
     title: "Graphique du vent", alt: "Vitesse et direction du vent dans le temps", empty: "Aucune mesure à la minute n'est disponible pour le moment.",
     gustFrom: "Rafale de", zoom: "Zoom", reset: "Réinitialiser", save: "Enregistrer l'image",
     noChart: "Le graphique n'a pas pu être chargé. Vérifiez votre connexion et actualisez la page.",
-    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleue et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pleine violet bleuté et ses flèches sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
+    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleue et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pleine bleu foncé et ses flèches sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
     technique: 'Le graphique à flèches suit la technique partagée par {gist} pour le panneau {volkov} de Grafana, dessiné ici avec {echarts}.',
   },
 };
@@ -32,7 +32,7 @@ const CHART_SCRIPT = `
 var el=document.getElementById("wind-chart");
 if(!window.echarts){el.outerHTML='<p class="note">'+D.L.noChart+'</p>';return}
 var css=getComputedStyle(document.documentElement),col=function(n){return css.getPropertyValue(n).trim()};
-var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#1f6fd1",gustCol="#8c7ae6";
+var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#72aef0",gustCol="#2f4fb8";
 // An arrow that points right (east) at rotation 0.
 var ARROW="path://M0,6 L14,6 L14,1 L24,10 L14,19 L14,14 L0,14 Z";
 var rows=D.rows,chart=echarts.init(el);
