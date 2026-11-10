@@ -32,7 +32,7 @@ const CHART_SCRIPT = `
 var el=document.getElementById("wind-chart");
 if(!window.echarts){el.outerHTML='<p class="note">'+D.L.noChart+'</p>';return}
 var css=getComputedStyle(document.documentElement),col=function(n){return css.getPropertyValue(n).trim()};
-var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#1f6fd1",gustCol="#7a45c8";
+var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#1f6fd1",gustCol="#8c7ae6";
 // An arrow that points right (east) at rotation 0.
 var ARROW="path://M0,6 L14,6 L14,1 L24,10 L14,19 L14,14 L0,14 Z";
 var rows=D.rows,chart=echarts.init(el);
@@ -64,7 +64,7 @@ chart.setOption({
  series:[
   {name:D.L.wind,type:"line",data:avg,symbol:ARROW,symbolSize:arrows(0,rows.length-1),showSymbol:true,
    itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:{opacity:0.25,color:accent},z:3},
-  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},areaStyle:{opacity:0.35,color:"#8fbef5"},z:2}:{type:"line",data:[]}
+  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},areaStyle:{opacity:0.22,color:gustCol},z:2}:{type:"line",data:[]}
  ]});
 // Zooming in shows fewer minutes, so draw an arrow for every point; zoomed out, thin them out.
 chart.on("datazoom",function(){var o=chart.getOption().dataZoom[0],n=rows.length,a=Math.round(o.start/100*(n-1)),b=Math.round(o.end/100*(n-1));
