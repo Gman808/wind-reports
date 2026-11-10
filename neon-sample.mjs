@@ -5,16 +5,19 @@ import { chartPage } from "./chart.mjs";
 
 const DAY = process.argv[2] ?? "2024-07-27";
 // "1hz" (default): four hours at 1 Hz. "20hz": ten minutes of the raw 20 Hz samples around the strongest gust of the day.
+// "last-hour": the 1 Hz data, but only the last hour of the four-hour window.
+const LAST = process.argv[3] === "last-hour";
 const MODE = process.argv[3] === "20hz" ? "20hz" : "1hz", HZ = MODE === "20hz" ? 20 : 1;
 const FILES = {
   home: { en: "index.html", fr: "fr.html" },
   about: { en: "about.html", fr: "a-propos.html" },
   sources: { en: "data-sources.html", fr: "sources-de-donnees.html" },
   other: { en: "other-wind-sites.html", fr: "autres-sites-de-vent.html" },
-  chart: { en: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : ""}.html`, fr: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : ""}-fr.html` },
+  chart: { en: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : LAST ? "-last-hour" : ""}.html`, fr: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : LAST ? "-last-hour" : ""}-fr.html` },
 };
 const href = (page, lang) => FILES[page][lang];
-const { rows, offset, residualStd } = JSON.parse(await readFile(new URL(`./NEON_20Hz/serc-${DAY}-${MODE}.json`, import.meta.url), "utf8"));
+const { rows: allRows, offset, residualStd } = JSON.parse(await readFile(new URL(`./NEON_20Hz/serc-${DAY}-${MODE}.json`, import.meta.url), "utf8"));
+const rows = LAST ? allRows.slice(-3600) : allRows;
 const MONTHS = { en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"], fr: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"] };
 const [Y, M, D] = DAY.split("-").map(Number);
 const hm = (ms) => new Date(ms).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Toronto" });
@@ -47,6 +50,12 @@ La direction du vent a été orientée à l'aide de NEON (National Ecological Ob
 Traitement : mesures soniques brutes à 20 Hz moyennées à 1 Hz (u, v, w et vitesse horizontale); direction tirée du vecteur horizontal moyen à 1 Hz, pivotée de ${offset.toFixed(0)}° pour concorder avec la direction du vent 2D de la tour (écart typique ±${residualStd.toFixed(0)}°, la direction est donc approximative).`,
   },
 };
+if (LAST) {
+  TEXT.en.title += " (last hour)";
+  TEXT.fr.title += " (dernière heure)";
+  TEXT.en.intro = TEXT.en.intro.replace("Four hours of 1 Hz wind", "The last hour of 1 Hz wind");
+  TEXT.fr.intro = TEXT.fr.intro.replace("Quatre heures de vent à 1 Hz", "La dernière heure de vent à 1 Hz");
+}
 if (MODE === "20hz") {
   TEXT.en.title = `NEON SERC 20 Hz wind – ${dateEn}`;
   TEXT.fr.title = `Vent à 20 Hz de NEON à SERC – ${dateFr}`;
