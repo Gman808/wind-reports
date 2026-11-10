@@ -102,7 +102,7 @@ const PAGE_SCRIPT = `
 var sel=function(id,vals,def){var s=document.getElementById(id);vals.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;if(v===def)o.selected=true;s.appendChild(o)});s.addEventListener("change",draw)};
 var range=function(a,b,st){var r=[];for(var v=a;v<=b;v+=st)r.push(v);return r};
 var have=D.blocks.length*D.blockMin,top=Math.max(30,Math.floor(have/30)*30);
-sel("s-size",range(5,45,5),5);sel("s-win",range(10,60,10),10);sel("s-min",range(30,top,30),Math.min(240,top));
+sel("s-size",[3,5,7,10,12,15,20,25,30,40,45,60,90,180],5);sel("s-win",range(10,60,10),10);sel("s-min",range(30,top,30),Math.min(240,top));
 var f1=function(x){return x==null?D.T.na:x.toFixed(1)};
 var hm=function(ms){return new Date(ms).toLocaleTimeString(D.locale,{hour:"2-digit",minute:"2-digit",timeZone:"America/Toronto"})};
 function draw(){
