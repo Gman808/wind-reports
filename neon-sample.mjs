@@ -7,8 +7,6 @@ const DAY = process.argv[2] ?? "2024-07-27";
 // "1hz" (default): four hours at 1 Hz. "20hz": ten minutes of the raw 20 Hz samples around the strongest gust of the day.
 // "last-hour": the 1 Hz data, but only the last hour of the four-hour window.
 const LAST = process.argv[3] === "last-hour";
-// "chart2": the four hours as one-minute lulls, averages and gusts (three lines).
-const CHART2 = process.argv[3] === "chart2";
 const MODE = process.argv[3] === "20hz" ? "20hz" : "1hz", HZ = MODE === "20hz" ? 20 : 1;
 const FILES = {
   home: { en: "index.html", fr: "fr.html" },
@@ -17,7 +15,7 @@ const FILES = {
   other: { en: "other-wind-sites.html", fr: "autres-sites-de-vent.html" },
   chart2: { en: "wind-chart-2.html", fr: "graphique-du-vent-2.html" },
   shifts: { en: "wind-shifts.html", fr: "changements-de-vent.html" },
-  chart: { en: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : LAST ? "-last-hour" : CHART2 ? "-chart2" : ""}.html`, fr: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : LAST ? "-last-hour" : CHART2 ? "-chart2" : ""}-fr.html` },
+  chart: { en: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : LAST ? "-last-hour" : ""}.html`, fr: `neon-serc-${DAY}${MODE === "20hz" ? "-20hz" : LAST ? "-last-hour" : ""}-fr.html` },
 };
 const href = (page, lang) => FILES[page][lang];
 const { rows: allRows, offset, residualStd } = JSON.parse(await readFile(new URL(`./NEON_20Hz/serc-${DAY}-${MODE}.json`, import.meta.url), "utf8"));
@@ -29,17 +27,7 @@ const hms = (ms) => new Date(ms).toLocaleTimeString("en-CA", { hour: "2-digit", 
 const span = MODE === "20hz" ? `${hms(rows[0].t)}–${hms(rows.at(-1).t + 50)}` : `${hm(rows[0].t)}–${hm(rows.at(-1).t + 1000)}`;
 const dateEn = `${D} ${MONTHS.en[M - 1]} ${Y}`, dateFr = `${D === 1 ? "1er" : D} ${MONTHS.fr[M - 1]} ${Y}`;
 // Gust line: the strongest 1 s speed within the surrounding minute (30 s either side), with the direction at that moment.
-const minutePoints = () => {
-  const out = [], rad = Math.PI / 180;
-  for (let i = 0; i + 60 <= rows.length; i += 60) {
-    const g = rows.slice(i, i + 60);
-    const hi = g.reduce((a, r) => (r.wind > a.wind ? r : a)), lo = g.reduce((a, r) => (r.wind < a.wind ? r : a));
-    const sin = g.reduce((a, r) => a + Math.sin(r.dir * rad), 0), cos = g.reduce((a, r) => a + Math.cos(r.dir * rad), 0);
-    out.push({ t: g[0].t, wind: g.reduce((a, r) => a + r.wind, 0) / g.length, gust: hi.wind, lull: lo.wind, dir: ((Math.atan2(sin, cos) / rad) + 360) % 360, gustDir: hi.dir, lullDir: lo.dir });
-  }
-  return out;
-};
-const points = CHART2 ? minutePoints() : rows.map((r, i) => {
+const points = rows.map((r, i) => {
   let g = i;
   for (let j = Math.max(0, i - 30 * HZ); j <= Math.min(rows.length - 1, i + 30 * HZ); j++) if (rows[j].wind > rows[g].wind) g = j;
   return { t: r.t, wind: r.wind, gust: rows[g].wind, dir: r.dir, gustDir: rows[g].dir };
@@ -69,16 +57,6 @@ if (LAST) {
   TEXT.fr.title += " (dernière heure)";
   TEXT.en.intro = TEXT.en.intro.replace("Four hours of 1 Hz wind", "The last hour of 1 Hz wind");
   TEXT.fr.intro = TEXT.fr.intro.replace("Quatre heures de vent à 1 Hz", "La dernière heure de vent à 1 Hz");
-}
-if (CHART2) {
-  TEXT.en.title = `NEON SERC Wind Chart 2 – ${dateEn}`;
-  TEXT.fr.title = `Graphique du vent 2 de NEON à SERC – ${dateFr}`;
-  TEXT.en.intro = `Four hours (${span} Eastern) from the top sonic anemometer (about 61.6 m) on the NEON tower at the Smithsonian Environmental Research Center, Maryland, shown as one value per minute for the gusts (the strongest second of the minute), the average wind speed and the lulls (the weakest second). This is a test data set, not wind on Lake of Two Mountains.`;
-  TEXT.fr.intro = `Quatre heures (${span.replace(":", " h ").replace(":", " h ").replace("–", " à ")}, heure de l'Est) de l'anémomètre sonique du haut (environ 61,6 m) de la tour NEON du Smithsonian Environmental Research Center, au Maryland, présentées par minute : les rafales (la seconde la plus forte de la minute), la vitesse moyenne du vent et les accalmies (la seconde la plus faible). Il s'agit d'un jeu de données d'essai, et non du vent sur le lac des Deux Montagnes.`;
-  TEXT.en.how = "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The dark-blue line is the average wind speed for the minute, the light-blue line is the gust (strongest second) and the green line is the lull (weakest second). Each arrow shows the wind direction at that moment, so the three arrows can differ. Drag across the chart to zoom, and hover or tap a point for the details.";
-  TEXT.fr.how = "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne bleu foncé est la vitesse moyenne du vent pour la minute, la ligne bleu pâle est la rafale (seconde la plus forte) et la ligne verte est l'accalmie (seconde la plus faible). Chaque flèche montre la direction du vent à ce moment, les trois flèches peuvent donc différer. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.";
-  TEXT.en.credit = TEXT.en.credit.replace(/Processing:[^]*$/, `Processing: raw 20 Hz sonic readings averaged to 1 Hz, then summarised per minute (strongest, mean and weakest second); direction rotated by ${offset.toFixed(0)}° to match the tower's 2D wind direction (typical difference ±${residualStd.toFixed(0)}°, so treat direction as approximate).`);
-  TEXT.fr.credit = TEXT.fr.credit.replace(/Traitement :[^]*$/, `Traitement : mesures soniques brutes à 20 Hz moyennées à 1 Hz, puis résumées par minute (seconde la plus forte, moyenne et seconde la plus faible); direction pivotée de ${offset.toFixed(0)}° pour concorder avec la direction du vent 2D de la tour (écart typique ±${residualStd.toFixed(0)}°, la direction est donc approximative).`);
 }
 if (MODE === "20hz") {
   TEXT.en.title = `NEON SERC 20 Hz wind – ${dateEn}`;

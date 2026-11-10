@@ -32,7 +32,7 @@ const CHART_SCRIPT = `
 var el=document.getElementById("wind-chart");
 if(!window.echarts){el.outerHTML='<p class="note">'+D.L.noChart+'</p>';return}
 var css=getComputedStyle(document.documentElement),col=function(n){return css.getPropertyValue(n).trim()};
-var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#2f4fb8",gustCol="#72aef0",lullCol="#1f9d8b";
+var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#2f4fb8",gustCol="#72aef0",lullCol="#1c3f9a";
 // An arrow that points right (east) at rotation 0.
 var ARROW="path://M0,6 L14,6 L14,1 L24,10 L14,19 L14,14 L0,14 Z";
 var rows=D.rows,chart=echarts.init(el);
@@ -43,10 +43,16 @@ var rot=function(d){return d==null?0:90-((d+180)%360)};
 function step(n){return Math.max(1,Math.ceil(n/D.maxArrows))}
 function arrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].dir!=null?16:0}}
 var hasGust=rows.some(function(r){return r.gust!=null}),hasLull=rows.some(function(r){return r.lull!=null});
+// With three lines the blues get darker toward the bottom: gust lightest, average in the middle, lull darkest.
+if(hasLull){accent="#3f78d6"}
 var avg=rows.map(function(r){return {value:[r.t,r.wind==null?null:+r.wind.toFixed(1)],symbolRotate:rot(r.dir)}});
 var gust=rows.map(function(r){return {value:[r.t,r.gust==null?null:+r.gust.toFixed(1)],symbolRotate:rot(r.gustDir)}});
 var lull=rows.map(function(r){return {value:[r.t,r.lull==null?null:+r.lull.toFixed(1)],symbolRotate:rot(r.lullDir)}});
 // Arrows on the gust and lull lines, thinned like the wind arrows; none where there is no direction.
+// Bands between the lines (three-line chart): stacked helper series, an invisible base plus the gap that gets the fill.
+function gap(hi,lo){return rows.map(function(r){return [r.t,r[hi]==null||r[lo]==null?null:Math.max(0,+(r[hi]-r[lo]).toFixed(2))]})}
+function base(k){return rows.map(function(r){return [r.t,r[k]==null?null:+r[k].toFixed(2)]})}
+function helper(stack,data,fill){return {type:"line",stack:stack,data:data,silent:true,symbol:"none",showSymbol:false,lineStyle:{width:0},itemStyle:{color:"transparent"},areaStyle:fill?{color:fill}:{opacity:0},z:1,tooltip:{show:false}}}
 function lullArrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].lullDir!=null?16:0}}
 function gustArrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].gustDir!=null?16:0}}
 chart.setOption({
@@ -67,10 +73,10 @@ chart.setOption({
  grid:{left:8,right:16,top:36,bottom:40,containLabel:true},
  series:[
   {name:D.L.wind,type:"line",data:avg,symbol:ARROW,symbolSize:arrows(0,rows.length-1),showSymbol:true,
-   itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:{opacity:0.25,color:accent},z:3},
-  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},areaStyle:{opacity:0.22,color:gustCol},z:2}:{type:"line",data:[]},
+   itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:hasLull?{opacity:0}:{opacity:0.25,color:accent},z:3},
+  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},areaStyle:hasLull?{opacity:0}:{opacity:0.22,color:gustCol},z:2}:{type:"line",data:[]},
   hasLull?{name:D.L.lull,type:"line",data:lull,symbol:ARROW,symbolSize:lullArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:lullCol},lineStyle:{width:1.5,color:lullCol},z:4}:{type:"line",data:[]}
- ]});
+ ].concat(hasLull?[helper("a",base("lull"),null),helper("a",gap("wind","lull"),"rgba(63,120,214,0.38)"),helper("b",base("wind"),null),helper("b",gap("gust","wind"),"rgba(114,174,240,0.26)")]:[])});
 // Zooming in shows fewer minutes, so draw an arrow for every point; zoomed out, thin them out.
 chart.on("datazoom",function(){var o=chart.getOption().dataZoom[0],n=rows.length,a=Math.round(o.start/100*(n-1)),b=Math.round(o.end/100*(n-1));
  chart.setOption({series:[{symbolSize:arrows(a,b)},{symbolSize:gustArrows(a,b)},{symbolSize:lullArrows(a,b)}]})});

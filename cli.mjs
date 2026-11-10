@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
 import { buildSources, shiftPage } from "./shift-table.mjs";
-import { serc, sercCredit } from "./serc-data.mjs";
+import { chart2Opts, chart2Rows, serc, sercCredit } from "./serc-data.mjs";
 import { ecccMinutes, tempestMinutes } from "./history.mjs";
 import { aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
@@ -55,7 +55,6 @@ await mkdir(OUT, { recursive: true });
 const c = await collect({ tempestToken: process.env.TEMPEST_TOKEN, store });
 await persist(c, store);
 const minutes = (await ecccMinutes(ECCC_STATION, Date.now())) ?? [];
-const tempestRows = (await tempestMinutes(process.env.TEMPEST_TOKEN, Date.now(), 4)) ?? [];
 const shiftSources = buildSources({
   hyc: await store.get("hudson-history", []), cvl: (await tempestMinutes(process.env.TEMPEST_TOKEN, Date.now(), 12)) ?? [],
   stadb: (await ecccMinutes(ECCC_STATION, Date.now(), 12)) ?? [], serc,
@@ -67,7 +66,7 @@ for (const lang of ["en", "fr"]) {
   await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
   await writeFile(new URL(FILES.other[lang], OUT), otherPage(ctx("other")));
   await writeFile(new URL(FILES.chart[lang], OUT), chartPage(ctx("chart"), minutes));
-  await writeFile(new URL(FILES.chart2[lang], OUT), chartPage(ctx("chart2"), tempestRows, { title: lang === "fr" ? "Graphique du vent 2" : "Wind Chart 2", intro: lang === "fr" ? "Rafales, vitesse moyenne et accalmies à la minute à la station Tempest du Club de voile des Laurentides, en nœuds." : "Gusts, average wind speed and lulls, one value per minute, from the Tempest station at Club de Voile des Laurentides, in knots." }));
+  await writeFile(new URL(FILES.chart2[lang], OUT), chartPage(ctx("chart2"), chart2Rows, chart2Opts(lang)));
   await writeFile(new URL(FILES.shifts[lang], OUT), shiftPage(ctx("shifts"), shiftSources, { sercCredit: sercCredit(lang) }));
 }
 await writeFile(new URL("data.json", OUT), JSON.stringify(c.data));
