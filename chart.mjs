@@ -14,14 +14,14 @@ const TEXT = {
     title: "Wind Chart", alt: "Wind speed and direction over time", empty: "No one-minute readings are available right now.",
     gustFrom: "Gust from", zoom: "Zoom", reset: "Reset", save: "Save as image",
     noChart: "The chart could not be loaded. Check your connection and refresh the page.",
-    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid line is the average wind speed for the minute and the dashed line is the strongest gust within that minute. Drag across the chart to zoom, and hover or tap a point for the details.",
+    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid blue line and arrows are the average wind speed for the minute; the dashed orange line and orange arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
     technique: 'The arrow-on-a-line chart follows the technique shared by {gist} for the {volkov} panel in Grafana, drawn here with {echarts}.',
   },
   fr: {
     title: "Graphique du vent", alt: "Vitesse et direction du vent dans le temps", empty: "Aucune mesure à la minute n'est disponible pour le moment.",
     gustFrom: "Rafale de", zoom: "Zoom", reset: "Réinitialiser", save: "Enregistrer l'image",
     noChart: "Le graphique n'a pas pu être chargé. Vérifiez votre connexion et actualisez la page.",
-    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine est la vitesse moyenne du vent pour la minute et la ligne pointillée, la plus forte rafale de cette minute. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
+    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleue et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pointillée orange et ses flèches orange sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
     technique: 'Le graphique à flèches suit la technique partagée par {gist} pour le panneau {volkov} de Grafana, dessiné ici avec {echarts}.',
   },
 };
@@ -44,7 +44,9 @@ function step(n){return Math.max(1,Math.ceil(n/D.maxArrows))}
 function arrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].dir!=null?16:0}}
 var hasGust=rows.some(function(r){return r.gust!=null});
 var avg=rows.map(function(r){return {value:[r.t,r.wind==null?null:+r.wind.toFixed(1)],symbolRotate:rot(r.dir)}});
-var gust=rows.map(function(r){return [r.t,r.gust==null?null:+r.gust.toFixed(1)]});
+var gust=rows.map(function(r){return {value:[r.t,r.gust==null?null:+r.gust.toFixed(1)],symbolRotate:rot(r.gustDir)}});
+// Orange arrows on the gust line, thinned like the wind arrows; none where there is no gust direction.
+function gustArrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].gustDir!=null?16:0}}
 chart.setOption({
  backgroundColor:"transparent",textStyle:{color:text},
  tooltip:{trigger:"axis",formatter:function(ps){var i=ps[0].dataIndex,r=rows[i];
@@ -61,11 +63,11 @@ chart.setOption({
  series:[
   {name:D.L.wind,type:"line",data:avg,symbol:ARROW,symbolSize:arrows(0,rows.length-1),showSymbol:true,
    itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:{opacity:0.1,color:accent},z:3},
-  hasGust?{name:D.L.gust,type:"line",data:gust,showSymbol:false,itemStyle:{color:gustCol},lineStyle:{width:1,color:gustCol,type:"dashed"},z:2}:{type:"line",data:[]}
+  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1,color:gustCol,type:"dashed"},z:2}:{type:"line",data:[]}
  ]});
 // Zooming in shows fewer minutes, so draw an arrow for every point; zoomed out, thin them out.
 chart.on("datazoom",function(){var o=chart.getOption().dataZoom[0],n=rows.length,a=Math.round(o.start/100*(n-1)),b=Math.round(o.end/100*(n-1));
- chart.setOption({series:[{symbolSize:arrows(a,b)}]})});
+ chart.setOption({series:hasGust?[{symbolSize:arrows(a,b)},{symbolSize:gustArrows(a,b)}]:[{symbolSize:arrows(a,b)}]})});
 window.addEventListener("resize",function(){chart.resize()});
 })();`;
 

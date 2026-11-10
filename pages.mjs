@@ -96,7 +96,7 @@ tbody tr:not(.band):not(.now):hover{--cell:var(--hover)}
 .page ul{padding-left:1.25rem}.page li{margin:.3rem 0}
 .source{border:1px solid var(--line);border-radius:10px;padding:.25rem 1rem 1rem;margin:1rem 0}
 .embed.tall{height:44rem}
-.chart{width:100%;height:26rem;border:1px solid var(--line);border-radius:10px;margin:.75rem 0}
+.chart{width:100%;height:52rem;border:1px solid var(--line);border-radius:10px;margin:.75rem 0}
 .embed{width:100%;height:28rem;border:1px solid var(--line);border-radius:10px;display:block;margin:.75rem 0}
 .foot{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--line)}
 
