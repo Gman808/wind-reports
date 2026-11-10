@@ -14,14 +14,14 @@ const TEXT = {
     title: "Wind Chart", alt: "Wind speed and direction over time", empty: "No one-minute readings are available right now.",
     gustFrom: "Gust from", zoom: "Zoom", reset: "Reset", save: "Save as image",
     noChart: "The chart could not be loaded. Check your connection and refresh the page.",
-    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid blue line and arrows are the average wind speed for the minute; the dashed orange line and orange arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
+    how: "How to read it: each arrow points the way the wind is blowing toward (a west wind gives an arrow pointing right). The solid blue line and arrows are the average wind speed for the minute; the solid light-blue line and arrows are the strongest gust within that minute, so the gap between them shows how gusty the wind is. Drag across the chart to zoom, and hover or tap a point for the details.",
     technique: 'The arrow-on-a-line chart follows the technique shared by {gist} for the {volkov} panel in Grafana, drawn here with {echarts}.',
   },
   fr: {
     title: "Graphique du vent", alt: "Vitesse et direction du vent dans le temps", empty: "Aucune mesure à la minute n'est disponible pour le moment.",
     gustFrom: "Rafale de", zoom: "Zoom", reset: "Réinitialiser", save: "Enregistrer l'image",
     noChart: "Le graphique n'a pas pu être chargé. Vérifiez votre connexion et actualisez la page.",
-    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleue et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pointillée orange et ses flèches orange sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
+    how: "Comment le lire : chaque flèche pointe vers où le vent souffle (un vent d'ouest donne une flèche vers la droite). La ligne pleine bleue et ses flèches sont la vitesse moyenne du vent pour la minute; la ligne pleine bleu pâle et ses flèches sont la plus forte rafale de cette minute, et l'écart entre les deux montre à quel point le vent est rafaleux. Faites glisser sur le graphique pour zoomer, et survolez ou touchez un point pour les détails.",
     technique: 'Le graphique à flèches suit la technique partagée par {gist} pour le panneau {volkov} de Grafana, dessiné ici avec {echarts}.',
   },
 };
@@ -32,7 +32,7 @@ const CHART_SCRIPT = `
 var el=document.getElementById("wind-chart");
 if(!window.echarts){el.outerHTML='<p class="note">'+D.L.noChart+'</p>';return}
 var css=getComputedStyle(document.documentElement),col=function(n){return css.getPropertyValue(n).trim()};
-var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#1f6fd1",gustCol="#d9822b";
+var text=col("--text")||"#1b1f24",line=col("--line")||"#d5dbe1",accent="#1f6fd1",gustCol="#6fb0f2";
 // An arrow that points right (east) at rotation 0.
 var ARROW="path://M0,6 L14,6 L14,1 L24,10 L14,19 L14,14 L0,14 Z";
 var rows=D.rows,chart=echarts.init(el);
@@ -45,15 +45,16 @@ function arrows(first,last){var s=step(last-first+1);return function(v,p){return
 var hasGust=rows.some(function(r){return r.gust!=null});
 var avg=rows.map(function(r){return {value:[r.t,r.wind==null?null:+r.wind.toFixed(1)],symbolRotate:rot(r.dir)}});
 var gust=rows.map(function(r){return {value:[r.t,r.gust==null?null:+r.gust.toFixed(1)],symbolRotate:rot(r.gustDir)}});
-// Orange arrows on the gust line, thinned like the wind arrows; none where there is no gust direction.
+// Light-blue arrows on the gust line, thinned like the wind arrows; none where there is no gust direction.
 function gustArrows(first,last){var s=step(last-first+1);return function(v,p){return (p.dataIndex%s===0)&&rows[p.dataIndex].gustDir!=null?16:0}}
 chart.setOption({
  backgroundColor:"transparent",textStyle:{color:text},
  tooltip:{trigger:"axis",formatter:function(ps){var i=ps[0].dataIndex,r=rows[i];
   return new Date(r.t).toLocaleTimeString(D.locale,{hour:"2-digit",minute:"2-digit",timeZone:"America/Toronto"})+"<br>"+
    D.L.wind+": <b>"+(r.wind==null?"–":r.wind.toFixed(1))+" "+D.unit+"</b><br>"+
-   (hasGust?D.L.gust+": <b>"+(r.gust==null?"–":r.gust.toFixed(1))+" "+D.unit+"</b><br>":"")+
-   D.L.from+": <b>"+compass(r.dir)+"</b>"+(r.gustDir==null?"":"<br>"+D.L.gustFrom+": "+compass(r.gustDir))}},
+   D.L.from+": <b>"+compass(r.dir)+"</b>"+
+   (hasGust?"<br>"+D.L.gust+": <b>"+(r.gust==null?"–":r.gust.toFixed(1))+" "+D.unit+"</b>":"")+
+   (r.gustDir==null?"":"<br>"+D.L.gustFrom+": <b>"+compass(r.gustDir)+"</b>")}},
  legend:{left:0,bottom:0,data:hasGust?[D.L.wind,D.L.gust]:[D.L.wind],textStyle:{color:text}},
  toolbox:{right:8,feature:{dataZoom:{yAxisIndex:"none",title:{zoom:D.L.zoom,back:D.L.reset}},restore:{title:D.L.reset},saveAsImage:{title:D.L.save}},iconStyle:{borderColor:text}},
  dataZoom:[{type:"inside"}],
@@ -63,7 +64,7 @@ chart.setOption({
  series:[
   {name:D.L.wind,type:"line",data:avg,symbol:ARROW,symbolSize:arrows(0,rows.length-1),showSymbol:true,
    itemStyle:{color:accent},lineStyle:{width:1.5,color:accent},areaStyle:{opacity:0.1,color:accent},z:3},
-  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1,color:gustCol,type:"dashed"},z:2}:{type:"line",data:[]}
+  hasGust?{name:D.L.gust,type:"line",data:gust,symbol:ARROW,symbolSize:gustArrows(0,rows.length-1),showSymbol:true,itemStyle:{color:gustCol},lineStyle:{width:1.5,color:gustCol},z:2}:{type:"line",data:[]}
  ]});
 // Zooming in shows fewer minutes, so draw an arrow for every point; zoomed out, thin them out.
 chart.on("datazoom",function(){var o=chart.getOption().dataZoom[0],n=rows.length,a=Math.round(o.start/100*(n-1)),b=Math.round(o.end/100*(n-1));

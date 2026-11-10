@@ -8,7 +8,7 @@ The version number is also shown at the bottom of the page.
 - A Durable Object (`logger.mjs`, SQLite) that records a Tempest's rapid wind (about every 3 s) over WeatherFlow's WebSocket for a session
   of 1 to 24 hours (default 4). Control: `POST /api/logger/start?hours=4` and `/api/logger/stop` with `Authorization: Bearer <LOGGER_KEY>`;
   `GET /api/logger/status` and `/api/logger/csv?hours=4` are open.
-- A page for the log, `/wind-log` and `/fr/journal-du-vent`, using the Wind Chart (not in the menu): blue wind line and arrows, orange gust
+- A page for the log, `/wind-log` and `/fr/journal-du-vent`, using the Wind Chart (not in the menu): blue wind line and arrows, light-blue gust
   line and arrows (strongest reading within the surrounding minute), last four hours.
 - Setup: `wrangler secret put LOGGER_KEY`, set `LOGGER_STATION_ID` in wrangler.toml to the on-the-water station (TEMPEST_TOKEN must be
   authorized for it; the default 59196 is the indoor CVL sensor, which reads zero wind). Pure helpers are in `logger-core.mjs`.
@@ -16,10 +16,10 @@ The version number is also shown at the bottom of the page.
 ## 1.5 — Wind Chart
 - **Other Wind Sites** now starts with the Windguru forecast table for the spot (embedded above Windy).
 - `analyze.mjs`: wind-shift and gust analysis of the NEON 1 Hz sample (not part of the site).
-- Wind Chart: orange arrows on the gust line (gust direction), and the chart is twice as tall (52 rem) so the gap between wind and gusts is easier to see.
+- Wind Chart: light-blue solid gust line with arrows (gust direction), and the chart is twice as tall (52 rem) so the gap between wind and gusts is easier to see.
 
 - New page **Wind Chart** (`/wind-chart`, `/fr/graphique-du-vent`): the last four hours of one-minute wind from the Sainte-Anne-de-Bellevue
-  station as a line chart with an arrow at each point showing which way the wind blows, a dashed gust line, drag-to-zoom and tooltips.
+  station as a line chart with an arrow at each point showing which way the wind blows, a gust line, drag-to-zoom and tooltips.
   Technique after tkurki's Grafana ECharts gist; drawn with Apache ECharts 5.6.0.
 
 ## 1.3 — Other Wind Sites
