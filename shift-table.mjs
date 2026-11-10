@@ -79,7 +79,7 @@ const TEXT = {
     none: "Windows with no shift", sizeAvg: "Average size of a shift (degrees)", vb: "Veers / backs",
     dur: "Average duration of a shift (minutes)", vbt: "Average veer-back time (minutes)",
     of: "of", na: "–", span: "Sainte-Anne-de-Bellevue, {a}–{b} Eastern ({m} minutes)",
-    how: "A <strong>shift</strong> is a change of more than the chosen number of degrees from the wind direction of the previous 2 minutes that then holds for at least 2 minutes (directions are Environment Canada's one-minute averages; a missing minute breaks a shift). Once a shift is counted, the new direction becomes the starting point for the next one. A <strong>veer</strong> turns the wind clockwise and a <strong>back</strong> counterclockwise. <strong>Duration of a shift</strong> is how long the new direction lasts, from one shift to the next. <strong>Veer-back time</strong> is the time from a shift to the next shift in the opposite sense (a veer followed by a back, or the reverse). The data is the most recent stretch of the last 12 hours and is read when the page loads.",
+    how: "<strong>What the terms mean</strong><ul>\n<li><strong>Shift:</strong> the wind direction moves more than the chosen number of degrees away from where it was during the previous 2 minutes, and stays there for at least 2 minutes. Directions are Environment Canada's one-minute averages, and a missing minute breaks a shift. Once a shift is counted, the new direction becomes the starting point for the next one.</li>\n<li><strong>Veer:</strong> a shift that turns the wind clockwise (for example from west toward north).</li>\n<li><strong>Back:</strong> a shift that turns the wind counterclockwise (for example from north toward west).</li>\n<li><strong>Veers / backs:</strong> how many of the shifts were veers and how many were backs.</li>\n<li><strong>Duration of a shift:</strong> how long the new direction lasts, measured from one shift to the next shift of either kind. The most recent shift has no next shift yet, so it is left out of the average.</li>\n<li><strong>Veer-back time:</strong> how long it takes the wind to swing the other way. It is measured from a shift to the next shift in the opposite sense: from a veer to the next back, or from a back to the next veer. Shifts in between that go the same way as the first one are skipped. A veer at 10:00 followed by a back at 10:04 counts as 4 minutes. It is about half of one full back-and-forth swing.</li>\n<li><strong>Sample window:</strong> the length of each slice the data is cut into for the \"per window\" rows.</li>\n<li><strong>Amount of data:</strong> how many of the most recent minutes are analysed. The data is the last 12 hours at most and is read when the page loads.</li>\n</ul>",
     caveat: "Small sizes (5°) count ordinary gust-to-gust turbulence; the larger sizes show the real swings. At light wind the direction is less reliable and the count goes up.",
   },
   fr: {
@@ -92,7 +92,7 @@ const TEXT = {
     none: "Fenêtres sans changement", sizeAvg: "Ampleur moyenne d'un changement (degrés)", vb: "Virements / adonnements",
     dur: "Durée moyenne d'un changement (minutes)", vbt: "Temps moyen virement-adonnement (minutes)",
     of: "sur", na: "–", span: "Sainte-Anne-de-Bellevue, {a}–{b} heure de l'Est ({m} minutes)",
-    how: "Un <strong>changement</strong> est une variation de plus du nombre de degrés choisi par rapport à la direction du vent des 2 minutes précédentes, qui tient ensuite pendant au moins 2 minutes (les directions sont les moyennes à la minute d'Environnement Canada; une minute manquante interrompt un changement). Une fois un changement compté, la nouvelle direction devient le point de départ du suivant. Un <strong>virement</strong> fait tourner le vent dans le sens horaire et un <strong>adonnement</strong>, dans le sens antihoraire. La <strong>durée d'un changement</strong> est le temps pendant lequel la nouvelle direction se maintient, d'un changement au suivant. Le <strong>temps virement-adonnement</strong> est le temps entre un changement et le suivant dans le sens opposé (un virement suivi d'un adonnement, ou l'inverse). Les données sont la période la plus récente des 12 dernières heures, lue au chargement de la page.",
+    how: "<strong>Signification des termes</strong><ul>\n<li><strong>Changement :</strong> la direction du vent s'éloigne de plus du nombre de degrés choisi de ce qu'elle était pendant les 2 minutes précédentes, et y reste pendant au moins 2 minutes. Les directions sont les moyennes à la minute d'Environnement Canada, et une minute manquante interrompt un changement. Une fois un changement compté, la nouvelle direction devient le point de départ du suivant.</li>\n<li><strong>Virement :</strong> un changement qui fait tourner le vent dans le sens horaire (par exemple de l'ouest vers le nord).</li>\n<li><strong>Adonnement :</strong> un changement qui fait tourner le vent dans le sens antihoraire (par exemple du nord vers l'ouest).</li>\n<li><strong>Virements / adonnements :</strong> combien de changements étaient des virements et combien étaient des adonnements.</li>\n<li><strong>Durée d'un changement :</strong> le temps pendant lequel la nouvelle direction se maintient, mesuré d'un changement au changement suivant, de l'un ou l'autre type. Le changement le plus récent n'a pas encore de suivant et n'entre donc pas dans la moyenne.</li>\n<li><strong>Temps virement-adonnement :</strong> le temps que met le vent à repartir dans l'autre sens. Il est mesuré d'un changement au changement suivant de sens opposé : d'un virement au prochain adonnement, ou d'un adonnement au prochain virement. Les changements intermédiaires dans le même sens que le premier sont ignorés. Un virement à 10 h 00 suivi d'un adonnement à 10 h 04 compte pour 4 minutes. C'est environ la moitié d'un va-et-vient complet.</li>\n<li><strong>Fenêtre d'échantillon :</strong> la longueur de chaque tranche dans laquelle les données sont découpées pour les lignes « par fenêtre ».</li>\n<li><strong>Quantité de données :</strong> combien des dernières minutes sont analysées. Les données couvrent au plus les 12 dernières heures et sont lues au chargement de la page.</li>\n</ul>",
     caveat: "Les petites valeurs (5°) comptent la turbulence ordinaire d'une rafale à l'autre; les plus grandes montrent les vrais balancements. Par vent faible, la direction est moins fiable et le compte augmente.",
   },
 };
@@ -149,15 +149,17 @@ export function shiftPage(ctx, rows, opts = {}) {
 <div class="page">
 <style>
 .shifts{border-collapse:collapse;width:100%;margin:.5rem 0 1rem}
-.shifts th,.shifts td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left}
+.shifts th,.shifts td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;overflow-wrap:anywhere;white-space:normal}
 .shifts thead th{background:var(--panel)}
 .shifts td{font-variant-numeric:tabular-nums}
+.terms ul{margin:.4rem 0 0;padding-left:1.25rem}
+.terms li{margin:.35rem 0}
 .shifts select{font:inherit;padding:.25rem .4rem;min-width:5.5rem}
 </style>
 <h2>${T.title}</h2>
 <p>${T.intro}</p>
 ${tables}
-<p class="note">${T.how}</p>
+<div class="note terms">${T.how}</div>
 <p class="note">${T.caveat}</p>
 ${opts.credit ? `<p class="note">${opts.credit}</p>` : ""}
 </div>`;
