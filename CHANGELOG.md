@@ -4,7 +4,7 @@ Every change to how the site looks or behaves is a numbered version. Each versio
 deployed to Cloudflare with the same tag, so any of them can be brought back (see "Going back" below).
 The version number is also shown at the bottom of the page.
 
-## 1.6 — Tempest wind logger (branch `tempest-logger`, not deployed)
+## 1.6 — Tempest wind logger (the Wind Chart changes, Wind Chart 2 and Wind Shift Table listed under 1.5 below shipped in the same release)
 - A Durable Object (`logger.mjs`, SQLite) that records a Tempest's rapid wind (about every 3 s) over WeatherFlow's WebSocket for a session
   of 1 to 24 hours (default 4). Control: `POST /api/logger/start?hours=4` and `/api/logger/stop` with `Authorization: Bearer <LOGGER_KEY>`;
   `GET /api/logger/status` and `/api/logger/csv?hours=4` are open.

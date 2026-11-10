@@ -2,7 +2,7 @@
 // (About, Data Sources), each in English and French.
 import { AGE_TEXT, setLang, t } from "./i18n.mjs";
 
-export const VERSION = "1.5"; // see CHANGELOG.md; each released version is tagged v<version> in git
+export const VERSION = "1.6"; // see CHANGELOG.md; each released version is tagged v<version> in git
 
 // Where each page lives. Worker URLs here; cli.mjs maps the same pages to file names for a local preview.
 export const PAGES = {
