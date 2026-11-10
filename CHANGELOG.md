@@ -17,6 +17,7 @@ The version number is also shown at the bottom of the page.
 - **Other Wind Sites** now starts with the Windguru forecast table for the spot (embedded above Windy).
 - `analyze.mjs`: wind-shift and gust analysis of the NEON 1 Hz sample (not part of the site).
 - Wind Chart: blue-purple solid gust line with arrows (gust direction), and the chart is twice as tall (52 rem) so the gap between wind and gusts is easier to see.
+- `node neon-sample.mjs 2024-07-11 20hz` builds a ten-minute page of the raw 20 Hz samples (no averaging) around the strongest gust; the tooltip then shows seconds.
 
 - New page **Wind Chart** (`/wind-chart`, `/fr/graphique-du-vent`): the last four hours of one-minute wind from the Sainte-Anne-de-Bellevue
   station as a line chart with an arrow at each point showing which way the wind blows, a gust line, drag-to-zoom and tooltips.

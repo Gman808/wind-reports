@@ -50,7 +50,7 @@ function gustArrows(first,last){var s=step(last-first+1);return function(v,p){re
 chart.setOption({
  backgroundColor:"transparent",textStyle:{color:text},
  tooltip:{trigger:"axis",formatter:function(ps){var i=ps[0].dataIndex,r=rows[i];
-  return new Date(r.t).toLocaleTimeString(D.locale,{hour:"2-digit",minute:"2-digit",timeZone:"America/Toronto"})+"<br>"+
+  return new Date(r.t).toLocaleTimeString(D.locale,D.fine?{hour:"2-digit",minute:"2-digit",second:"2-digit",fractionalSecondDigits:2,timeZone:"America/Toronto"}:{hour:"2-digit",minute:"2-digit",timeZone:"America/Toronto"})+"<br>"+
    D.L.wind+": <b>"+(r.wind==null?"–":r.wind.toFixed(1))+" "+D.unit+"</b><br>"+
    D.L.from+": <b>"+compass(r.dir)+"</b>"+
    (hasGust?"<br>"+D.L.gust+": <b>"+(r.gust==null?"–":r.gust.toFixed(1))+" "+D.unit+"</b>":"")+
@@ -82,7 +82,7 @@ export function chartPage(ctx, rows, opts = {}) {
     wind: t("Wind"), gust: t("Gusts"), from: t("From"), gustFrom: T.gustFrom, zoom: T.zoom, reset: T.reset, save: T.save, noChart: T.noChart,
   };
   const compass = [...Array(16)].map((_, i) => compassPoint(i));
-  const data = { rows, L, compass, unit: KN(), locale: lang === "fr" ? "fr-CA" : "en-CA", maxArrows: 48 };
+  const data = { rows, L, compass, unit: KN(), locale: lang === "fr" ? "fr-CA" : "en-CA", maxArrows: 48, fine: !!opts.fine };
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   const empty = !rows?.length;
   const body = `
