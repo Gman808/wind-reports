@@ -1,6 +1,7 @@
-// Wind-shift and gust analysis of the 1 Hz sample (NEON_20Hz/serc-2024-07-27-1hz.json). Writes NEON_20Hz/serc-2024-07-27-analysis.json.
+// Wind-shift and gust analysis of the 1 Hz sample (NEON_20Hz/serc-<day>-1hz.json). Writes NEON_20Hz/serc-${DAY}-analysis.json.
 import { readFile, writeFile } from "node:fs/promises";
-const { rows } = JSON.parse(await readFile(new URL("./NEON_20Hz/serc-2024-07-27-1hz.json", import.meta.url), "utf8"));
+const DAY = process.argv[2] ?? "2024-07-27";
+const { rows } = JSON.parse(await readFile(new URL(`./NEON_20Hz/serc-${DAY}-1hz.json`, import.meta.url), "utf8"));
 const rad = Math.PI / 180, norm = (d) => ((d % 360) + 360) % 360, diff = (a, b) => ((a - b + 540) % 360) - 180; // signed a-b in (-180,180]
 const mean = (xs) => xs.reduce((a, x) => a + x, 0) / xs.length;
 const sd = (xs) => { const m = mean(xs); return Math.sqrt(mean(xs.map((x) => (x - m) ** 2))); };
@@ -45,7 +46,7 @@ const spec = []; for (const per of [30, 60, 90, 120, 180, 240, 300, 420, 600, 90
 
 // ---- Gusts: 3 s mean speed against the 10 min running mean ----
 const sp = rows.map((r) => r.wind);
-const sp3 = sp.map((_, i) => mean(sp.slice(Math.max(0, i - 1), i + 2)));
+const sp3 = sp; // 1 s values, no smoothing (the name is kept from the earlier 3 s version)
 const base = new Array(N); { let sum = 0; const H = 300; for (let i = 0; i < Math.min(N, H); i++) sum += sp[i]; for (let i = 0; i < N; i++) { const lo = Math.max(0, i - H), hi = Math.min(N - 1, i + H); let s = 0; for (let j = lo; j <= hi; j++) s += sp[j]; base[i] = s / (hi - lo + 1); } }
 const dirBase = rows.map((_, i) => dmean(rows.slice(Math.max(0, i - 300), Math.min(N, i + 301)).filter((_, j) => j % 5 === 0).map((r) => r.dir)));
 function events(sign) { // sign +1 gusts, -1 lulls
@@ -77,6 +78,6 @@ const out = {
   gusts: summ(gusts), lulls: summ(lulls), per10min: per10.map((p) => ({ ...p, time: new Date(p.t).toISOString().slice(11, 16) })),
   events: { gusts, lulls },
 };
-await writeFile(new URL("./NEON_20Hz/serc-2024-07-27-analysis.json", import.meta.url), JSON.stringify(out));
+await writeFile(new URL(`./NEON_20Hz/serc-${DAY}-analysis.json`, import.meta.url), JSON.stringify(out));
 const { events: _e, per10min, ...show } = out; show.direction.shifts15.list = show.direction.shifts15.list.map((s) => `${s.time.slice(11, 16)}Z ${s.from.toFixed(0)}->${s.to.toFixed(0)} (${s.change.toFixed(0)}) ${s.persistent}`);
 console.log(JSON.stringify(show, null, 1)); console.log(per10min.map((p) => `${p.time} mean ${p.mean.toFixed(1)} peak3 ${p.peak3.toFixed(1)} GF ${p.gustFactor.toFixed(2)} dirSd ${p.dirSd.toFixed(0)}`).join("\n"));

@@ -19,3 +19,7 @@ Anything produced from the NEON data (charts, tables, analysis, pages, write-ups
   Cite it wherever the direction is shown.
 - Averaged here to 1 Hz (mean of the 20 readings in each second); direction rotated to match the 2D wind direction (about ±14°).
 - Pages that show it: `neon-sample.mjs` builds `site/neon-serc-2024-07-27*.html` locally. The raw and 1 Hz files stay in `NEON_20Hz/`.
+
+## 1 Hz sample (11 July 2024)
+- Same source, processing and credit as the 27 July sample (raw 20 Hz tower-top sonic, DP4.00200.001; direction oriented with DP1.00001.001).
+- Window 11:30–15:30 Eastern (15:30–19:30 UTC). Build with `node neon-sample.mjs 2024-07-11`; analysis with `node analyze.mjs 2024-07-11`.
