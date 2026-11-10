@@ -19,6 +19,7 @@ The version number is also shown at the bottom of the page.
 - Wind Chart: blue-purple solid gust line with arrows (gust direction), and the chart is twice as tall (52 rem) so the gap between wind and gusts is easier to see.
 - `node neon-sample.mjs 2024-07-11 20hz` builds a ten-minute page of the raw 20 Hz samples (no averaging) around the strongest gust; the tooltip then shows seconds.
 - `node neon-sample.mjs 2024-07-11 last-hour` builds the 1 Hz page for only the last hour of the four-hour window.
+- `node neon-shifts.mjs` builds the Wind Shift Table page (`site/neon-serc-shifts.html`): both samples side by side, with pull-down settings for shift size, time window and minutes of data, plus average shift duration and veer-back time.
 
 - New page **Wind Chart** (`/wind-chart`, `/fr/graphique-du-vent`): the last four hours of one-minute wind from the Sainte-Anne-de-Bellevue
   station as a line chart with an arrow at each point showing which way the wind blows, a gust line, drag-to-zoom and tooltips.
