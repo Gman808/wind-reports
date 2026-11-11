@@ -351,7 +351,7 @@ function currentWind({ station, club, eccc }) {
 
 // The home page. ctx = { lang, page, href } (see pages.mjs).
 export function renderHome(c, ctx) {
-  const { data, station, club, eccc, past, forecasts, now } = c;
+  const { data, station, club, eccc, now } = c;
   setLang(ctx.lang);
   const e = escapeHtml;
   const L = titles();
@@ -359,8 +359,6 @@ export function renderHome(c, ctx) {
   const facts = (rows) => `<dl class="facts">${rows.map(([k, v]) => `<dt>${e(k)}</dt><dd>${e(v)}</dd>`).join("")}</dl>`;
   const table = (headings, rows) => `<div class="scroll-container"><table><thead><tr>${headings.map((h) => `<th>${e(h).replace(" (", "<br>(")}</th>`).join("")}</tr></thead><tbody>${
     rows.map((r) => `<tr>${r.map((cell) => `<td>${e(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  const pastSection = (title, rows, empty) => `<h3>${e(title)}</h3>${
-    rows?.length ? table(pastHead(), pastTableRows(rows)) : `<p class="note">${e(empty)}</p>`}`;
   const body = `
 <p class="updated"><small>${e(t("Last updated"))} ${e(stamp)} ${e(t("(Eastern)"))} · <span id="age" data-t="${now.toISOString()}"></span></small>
 <button id="refresh" class="btn" type="button">${e(t("Refresh"))}</button></p>
@@ -369,14 +367,49 @@ export function renderHome(c, ctx) {
 <h3>${e(L.club)}</h3>${facts(clubRows(club))}
 <h3>${e(L.eccc)}</h3>${facts(ecccRows(eccc))}
 </section>
-<section id="details"><h2>${e(t("Details from the last Hour"))}</h2><p class="note">${e(t("One reading per update, about 15 minutes apart. Each station's own reading time is shown."))}</p>
-${pastSection(L.hudson, past.log4.hudson, t("No station reading yet: Hudson's outdoor sensors aren't reporting."))}
-${pastSection(L.club, past.log4.club, t("No station reading yet."))}
-${pastSection(L.eccc, past.log4.eccc, t("No station reading yet."))}
-</section>
-<section id="timeline"><h2>${e(t("Wind Timeline"))}</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}</section>
 <section id="forecast"><h2>${e(t("Five Day Forecast"))}</h2>${table(forecastHead(), forecastRows(data))}</section>`;
   return layout({ ctx, title: "", body, extraScript: ageScript(ctx.lang) });
+}
+
+// The past PAST_HOURS hours of one location's readings, newest first: hourly data merged with the quarter-hour log
+// (the logged reading wins where both fall in the same quarter hour).
+function recentReadings(hourly, logged, nowMs) {
+  const HOUR = 3_600_000, QUARTER = 900_000, nowHour = Math.floor(nowMs / HOUR), m = new Map();
+  for (const r of hourly ?? []) {
+    const h = Math.floor(r.t / HOUR);
+    if (h > nowHour - PAST_HOURS && h <= nowHour) m.set(h * 4, r);
+  }
+  for (const r of logged ?? []) if (r.t > nowMs - PAST_HOURS * HOUR && r.t <= nowMs) m.set(Math.floor(r.t / QUARTER), r);
+  return [...m.entries()].sort((a, b) => b[0] - a[0]).map(([, r]) => r);
+}
+
+// The Recent Wind page: Recent Wind Details (past four hours per location; each time links to Wind Chart 2) and the Wind Timeline.
+export function renderRecent(c, ctx) {
+  const { past, forecasts, now } = c;
+  setLang(ctx.lang);
+  const e = escapeHtml;
+  const L = titles();
+  const chart2 = e(ctx.href("chart2", ctx.lang));
+  const stamp = now.toLocaleString(locale(), { timeZone: TZ, dateStyle: "full", timeStyle: "short" });
+  const detailTable = (rows) => {
+    const cells = pastTableRows(rows);
+    return `<div class="scroll-container"><table><thead><tr>${pastHead().map((h) => `<th>${e(h).replace(" (", "<br>(")}</th>`).join("")}</tr></thead><tbody>${
+      cells.map((r) =>`<tr><td><a href="${chart2}">${e(r[0])}</a></td>${r.slice(1).map((cell) => `<td>${e(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  };
+  const section = (title, hourly, logged, empty) => {
+    const rows = recentReadings(hourly, logged, now.getTime());
+    return `<h3>${e(title)}</h3>${rows.length ? detailTable(rows) : `<p class="note">${e(empty)}</p>`}`;
+  };
+  const body = `
+<p class="updated"><small>${e(t("Last updated"))} ${e(stamp)} ${e(t("(Eastern)"))} · <span id="age" data-t="${now.toISOString()}"></span></small>
+<button id="refresh" class="btn" type="button">${e(t("Refresh"))}</button></p>
+<section id="details"><h2>${e(t("Recent Wind Details"))}</h2><p class="note">${e(t("The past four hours, newest first: readings about 15 minutes apart where this site has logged them, otherwise one reading per hour. Select a time to open Wind Chart 2."))}</p>
+${section(L.hudson, past.hudson, past.log4.hudson, t("No station reading yet: Hudson's outdoor sensors aren't reporting."))}
+${section(L.club, past.club, past.log4.club, t("No station reading yet."))}
+${section(L.eccc, past.eccc, past.log4.eccc, t("No station reading yet."))}
+</section>
+<section id="timeline"><h2>${e(t("Wind Timeline"))}</h2>${windTimeline({ past, forecasts, current: currentWind(c), now }, e)}</section>`;
+  return layout({ ctx, title: t("Recent Wind"), body, extraScript: ageScript(ctx.lang) });
 }
 
 // Fetches every source and works out the logs. `store` is { get(key, fallback), put(key, value) }:
@@ -404,7 +437,7 @@ export async function collect({ tempestToken, store, now = new Date(), refreshPa
       dir: eccc.avg_wnd_dir_10m_pst10mts ?? null,
     },
   };
-  const log4 = recordLatest(readingsLog, latest);
+  const log4 = recordLatest(readingsLog, latest, PAST_HOURS * 4 + 1); // four hours of quarter-hour readings
   const past = { hudsonLog: hudsonAll, hudson: lastHours(hudsonAll, nowMs), club: pastClub, eccc: pastSte, log4 };
   return { data, station, club, eccc, past, forecasts, now };
 }

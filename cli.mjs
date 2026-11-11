@@ -2,7 +2,7 @@
 // The live site runs from worker.mjs on Cloudflare; this stays for previewing the page without it.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import nodemailer from "nodemailer";
-import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, renderRecent, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
 import { buildSources, shiftPage } from "./shift-table.mjs";
 import { chart2Opts, chart2Rows, serc, sercCredit } from "./serc-data.mjs";
@@ -20,6 +20,7 @@ const FILES = {
   chart: { en: "wind-chart.html", fr: "graphique-du-vent.html" },
   chart2: { en: "wind-chart-2.html", fr: "graphique-du-vent-2.html" },
   shifts: { en: "wind-shifts.html", fr: "changements-de-vent.html" },
+  recent: { en: "recent-wind.html", fr: "vent-recent.html" },
 };
 const href = (page, lang) => FILES[page][lang];
 
@@ -62,6 +63,7 @@ const shiftSources = buildSources({
 for (const lang of ["en", "fr"]) {
   const ctx = (page) => ({ lang, page, href });
   await writeFile(new URL(FILES.home[lang], OUT), renderHome(c, ctx("home")));
+  await writeFile(new URL(FILES.recent[lang], OUT), renderRecent(c, ctx("recent")));
   await writeFile(new URL(FILES.about[lang], OUT), aboutPage(ctx("about")));
   await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
   await writeFile(new URL(FILES.other[lang], OUT), otherPage(ctx("other")));

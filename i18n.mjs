@@ -9,7 +9,8 @@ const FR = {
   // page and section titles
   "Lake of Two Mountains Wind Report": "Rapport des vents du lac des Deux Montagnes",
   "Current Conditions": "Conditions actuelles",
-  "Details from the last Hour": "Détails de la dernière heure",
+  "Recent Wind": "Vent récent",
+  "Recent Wind Details": "Détails récents du vent",
   "Wind Timeline": "Chronologie du vent",
   "Five Day Forecast": "Prévisions sur cinq jours",
   "Historical Wind Readings": "Relevés de vent passés",
@@ -48,8 +49,8 @@ const FR = {
   "Club de Voile des Laurentides weather station (Tempest)": "Station météo du Club de voile des Laurentides (Tempest)",
   "Club de Voile des Laurentides weather station (from cvl.qc.ca)": "Station météo du Club de voile des Laurentides (selon cvl.qc.ca)",
   "Station data unavailable right now": "Données de la station indisponibles pour le moment",
-  "One reading per update, about 15 minutes apart. Each station's own reading time is shown.":
-    "Une mesure par mise à jour, environ aux 15 minutes. L'heure propre à chaque station est indiquée.",
+  "The past four hours, newest first: readings about 15 minutes apart where this site has logged them, otherwise one reading per hour. Select a time to open Wind Chart 2.":
+    "Les quatre dernières heures, de la plus récente à la plus ancienne : des mesures environ aux 15 minutes lorsque ce site les a consignées, sinon une mesure par heure. Sélectionnez une heure pour ouvrir le Graphique du vent 2.",
   "No station reading yet: Hudson's outdoor sensors aren't reporting.":
     "Aucune mesure de la station pour l'instant : les capteurs extérieurs de Hudson ne transmettent pas.",
   "No station reading yet.": "Aucune mesure de la station pour l'instant.",

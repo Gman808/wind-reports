@@ -1,6 +1,6 @@
 // Cloudflare Worker: fetches fresh weather on every page load, and every 15 minutes (cron) records the
 // logs and sends the 6:00 / 17:00 email. Settings are in wrangler.toml; secrets are set with `wrangler secret put`.
-import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, summarize } from "./weather.mjs";
+import { ECCC_STATION, collect, emailDue, emailSubject, persist, renderHome, renderRecent, summarize } from "./weather.mjs";
 import { chartPage } from "./chart.mjs";
 import { buildSources, shiftPage } from "./shift-table.mjs";
 import { chart2Opts, chart2Rows, serc, sercCredit } from "./serc-data.mjs";
@@ -108,7 +108,7 @@ export default {
       return new Response(shiftPage(ctx, sources, { sercCredit: sercCredit(route.lang) }), { headers: { ...headers, "cache-control": "public, max-age=60" } });
     }
     // About and Data Sources are fixed text: no weather data needed.
-    if (route.page !== "home") {
+    if (route.page !== "home" && route.page !== "recent") {
       return new Response(({ about: aboutPage, sources: sourcesPage, other: otherPage })[route.page](ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });
     }
     if (!recent.c || Date.now() - recent.at > REUSE_MS) {
@@ -119,7 +119,8 @@ export default {
       if (firstRun) await persist(c, store);
       recent = { at: Date.now(), c };
     }
-    return new Response(renderHome(recent.c, ctx), { headers: { ...headers, "cache-control": "no-store" } });
+    const render = route.page === "recent" ? renderRecent : renderHome;
+    return new Response(render(recent.c, ctx), { headers: { ...headers, "cache-control": "no-store" } });
   },
 
   async scheduled(event, env, ctx) {

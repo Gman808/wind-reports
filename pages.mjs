@@ -13,6 +13,7 @@ export const PAGES = {
   chart: { en: "/wind-chart", fr: "/fr/graphique-du-vent" },
   chart2: { en: "/wind-chart-2", fr: "/fr/graphique-du-vent-2" },
   shifts: { en: "/wind-shifts", fr: "/fr/changements-de-vent" },
+  recent: { en: "/recent-wind", fr: "/fr/vent-recent" },
 };
 export const ROUTES = Object.fromEntries(
   Object.entries(PAGES).flatMap(([page, langs]) => Object.entries(langs).map(([lang, path]) => [path, { page, lang }])),
@@ -149,8 +150,8 @@ export function layout({ ctx, title, body, extraScript = "" }) {
 <nav aria-label="${esc(t("Menu"))}">
 <div class="lang" role="group" aria-label="${esc(t("Language"))}">${langRow}</div>
 ${link(t("About"), href("about", lang))}
-${link(t("Details from the last Hour"), `${home}#details`)}
-${link(t("Wind Timeline"), `${home}#timeline`)}
+${link(t("Recent Wind Details"), `${href("recent", lang)}#details`)}
+${link(t("Wind Timeline"), `${href("recent", lang)}#timeline`)}
 ${link(t("Wind Chart"), href("chart", lang))}
 ${link(t("Wind Chart 2"), href("chart2", lang))}
 ${link(t("Wind Shift Table"), href("shifts", lang))}
@@ -195,9 +196,12 @@ export function aboutPage(ctx) {
 <h3>Contenu de la page</h3>
 <ul>
 <li><strong>Conditions actuelles</strong> – la dernière mesure de trois stations météo : Hudson (HYC), Pointe-aux-Anglais (CVL) et Sainte-Anne-de-Bellevue (station météo).</li>
-<li><strong>Détails de la dernière heure</strong> – les mesures les plus récentes de chaque station, environ aux 15 minutes.</li>
-<li><strong>Chronologie du vent</strong> – un seul tableau pour les trois endroits : mesures récentes, une ligne <em>Maintenant</em> en surbrillance et le vent prévu pour les 12 prochaines heures.</li>
 <li><strong>Prévisions sur cinq jours</strong> – les prévisions quotidiennes pour Hudson.</li>
+</ul>
+<p>La page <a href="${esc(href("recent", lang))}">Vent récent</a> contient :</p>
+<ul>
+<li><strong>Détails récents du vent</strong> – les mesures des quatre dernières heures de chaque station, chaque heure menant au Graphique du vent 2.</li>
+<li><strong>Chronologie du vent</strong> – un seul tableau pour les trois endroits : mesures récentes, une ligne <em>Maintenant</em> en surbrillance et le vent prévu pour les 12 prochaines heures.</li>
 </ul>
 <h3>Lire les chiffres</h3>
 <ul>
@@ -206,7 +210,7 @@ export function aboutPage(ctx) {
 <li>Les heures sont celles de l'Est. Un tiret (–) signifie qu'il n'y a pas de mesure.</li>
 </ul>
 <h3>Mesuré ou prévu?</h3>
-<p>Les conditions actuelles, les détails de la dernière heure et les relevés de vent passés sont des <strong>mesures</strong> de stations météo. Le vent prévu et les prévisions sur cinq jours sont des <strong>prévisions de modèles informatiques</strong>, et non des mesures; le vent sur l'eau peut différer des deux. Une station peut n'afficher aucune donnée lorsque ses capteurs sont hors ligne ou déplacés.</p>
+<p>Les conditions actuelles, les détails récents du vent et les relevés de vent passés sont des <strong>mesures</strong> de stations météo. Le vent prévu et les prévisions sur cinq jours sont des <strong>prévisions de modèles informatiques</strong>, et non des mesures; le vent sur l'eau peut différer des deux. Une station peut n'afficher aucune donnée lorsque ses capteurs sont hors ligne ou déplacés.</p>
 <h3>À quel point est-ce à jour?</h3>
 <p>La page recueille des données fraîches chaque fois qu'elle est ouverte ou actualisée. Le site enregistre aussi une mesure aux 15 minutes, ce qui alimente l'historique récent, car certaines stations ne conservent pas d'historique.</p>
 <p>Ce rapport est un guide seulement et ne doit pas être la seule base des décisions de sécurité sur l'eau. Consultez les prévisions et les avertissements officiels d'Environnement Canada.</p>
@@ -218,9 +222,12 @@ export function aboutPage(ctx) {
 <h3>What is on the page</h3>
 <ul>
 <li><strong>Current Conditions</strong> – the latest reading from three weather stations: Hudson (HYC), Pointe-aux-Anglais (CVL) and Sainte-Anne-de-Bellevue (Weather Station).</li>
-<li><strong>Details from the last Hour</strong> – each station's most recent readings, about 15 minutes apart.</li>
-<li><strong>Wind Timeline</strong> – one table for the three locations: recent readings, a highlighted <em>Now</em> row, and the next 12 hours of forecast wind.</li>
 <li><strong>Five Day Forecast</strong> – a daily outlook for Hudson.</li>
+</ul>
+<p>The <a href="${esc(href("recent", lang))}">Recent Wind</a> page has:</p>
+<ul>
+<li><strong>Recent Wind Details</strong> – each station's readings for the past four hours; each time links to Wind Chart 2.</li>
+<li><strong>Wind Timeline</strong> – one table for the three locations: recent readings, a highlighted <em>Now</em> row, and the next 12 hours of forecast wind.</li>
 </ul>
 <h3>Reading the numbers</h3>
 <ul>
@@ -229,7 +236,7 @@ export function aboutPage(ctx) {
 <li>Times are Eastern. A dash (–) means there is no reading.</li>
 </ul>
 <h3>Measured or forecast?</h3>
-<p>Current Conditions, Details from the last Hour and the Historical Wind Readings are <strong>measurements</strong> from weather stations. Forecasted Wind and the Five Day Forecast are <strong>computer model forecasts</strong>, not measurements, and the wind on the water can differ from either. A station can show no data when its sensors are offline or being moved.</p>
+<p>Current Conditions, Recent Wind Details and the Historical Wind Readings are <strong>measurements</strong> from weather stations. Forecasted Wind and the Five Day Forecast are <strong>computer model forecasts</strong>, not measurements, and the wind on the water can differ from either. A station can show no data when its sensors are offline or being moved.</p>
 <h3>How up to date is it?</h3>
 <p>The page collects fresh data every time it is opened or refreshed. The site also saves a reading every 15 minutes, which is where the recent history comes from, because some stations keep no history of their own.</p>
 <p>Use this report as a guide only, not as the sole basis for decisions about safety on the water. Check Environment Canada for official forecasts and warnings.</p>
@@ -270,7 +277,7 @@ export function sourcesPage(ctx) {
 <ul>
 <li>Le vent est affiché en nœuds : km/h ÷ 1,852 et m/s × 1,94384.</li>
 <li>Les heures sont celles de l'Est. Une mesure de station de plus de 2 heures est considérée comme périmée.</li>
-<li>Les relevés récents (détails de la dernière heure et relevés de vent passés) sont enregistrés par ce site aux 15 minutes.</li>
+<li>Les relevés récents (détails récents du vent et relevés de vent passés) sont enregistrés par ce site aux 15 minutes.</li>
 </ul>
 </div>` : `
 <div class="page">
@@ -300,7 +307,7 @@ export function sourcesPage(ctx) {
 <ul>
 <li>Wind is shown in knots: km/h ÷ 1.852 and m/s × 1.94384.</li>
 <li>Times are Eastern. A station reading older than 2 hours is treated as out of date.</li>
-<li>The recent history (Details from the last Hour and the Historical Wind Readings) is recorded by this site every 15 minutes.</li>
+<li>The recent history (Recent Wind Details and the Historical Wind Readings) is recorded by this site every 15 minutes.</li>
 </ul>
 </div>`;
   return layout({ ctx, title: t("Data Sources"), body });
