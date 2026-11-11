@@ -160,7 +160,9 @@ function draw(){
  $("serc-credit").hidden=s.id!=="SERC";
  var have=s.blocks.filter(function(x){return x!=null}).length;
  var ids=["r-total","r-per","r-range","r-none","r-size","r-vb","r-dur","r-vbt"];
- if(have<2*Math.max(1,Math.round(2/s.blockMin))+1){set("r-period",D.T.empty);ids.forEach(function(id){set(id,D.T.na)});return}
+ var empty=have<2*Math.max(1,Math.round(2/s.blockMin))+1;
+ $("r-empty").hidden=!empty;
+ if(empty){ids.concat(["r-period"]).forEach(function(id){set(id,D.T.na)});return}
  var r=computeShifts(s.blocks,th,m,w,s.blockMin);
  var end=s.t0+s.blocks.length*s.blockMin*60000,start=end-r.covered*60000;
  set("r-period",D.T.span.replace("{a}",when(start)).replace("{b}",when(end)).replace("{m}",Math.round(r.covered)));
@@ -220,10 +222,12 @@ ${row(T.vb, "", "r-vb")}
 ${row(T.dur, "", "r-dur")}
 ${row(T.vbt, "", "r-vbt")}
 </tbody></table>
+<p class="note" id="r-empty" hidden>${T.empty}</p>
 <div class="note terms">${T.how}</div>
 <p class="note">${T.caveat}</p>
 ${opts.sercCredit ? `<p class="note" id="serc-credit" hidden>${opts.sercCredit}</p>` : `<p id="serc-credit" hidden></p>`}
 </div>`;
-  const extra = `var D=${json};var computeShifts=${computeShifts.toString()};${PAGE_SCRIPT}`;
+  // The Cloudflare bundler (esbuild keepNames) wraps functions in __name(); toString() keeps those calls, so define the helper here.
+  const extra = `var __name=function(f){return f};var D=${json};var computeShifts=${computeShifts.toString()};${PAGE_SCRIPT}`;
   return layout({ ctx, title: T.title, body, extraScript: extra });
 }
