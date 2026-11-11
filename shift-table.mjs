@@ -193,6 +193,8 @@ export function shiftPage(ctx, sources, opts = {}) {
 .shifts{border-collapse:collapse;width:100%;margin:.5rem 0 1rem}
 .shifts th,.shifts td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;overflow-wrap:anywhere;white-space:normal}
 .shifts thead th{background:var(--panel)}
+.shifts{table-layout:fixed}
+.shifts thead th:first-child{width:50%}
 .shifts th:first-child{text-align:right}
 .shifts td{font-variant-numeric:tabular-nums}
 .terms ul{margin:.4rem 0 0;padding-left:1.25rem}
