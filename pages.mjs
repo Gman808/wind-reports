@@ -142,7 +142,18 @@ var menu=document.querySelector(".menu");
 menu.addEventListener("click",function(e){if(e.target.closest("a"))menu.removeAttribute("open")});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")menu.removeAttribute("open")});
 document.addEventListener("click",function(e){if(!menu.contains(e.target))menu.removeAttribute("open")});
+// Link clicks (no cookies, no personal data): where the visitor was and where they went, for the site's own counts.
+document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(!a||!a.href||!navigator.sendBeacon)return;
+var u=new URL(a.href,location.href),to=u.origin===location.origin?u.pathname+u.hash:u.hostname;
+try{navigator.sendBeacon("/a",JSON.stringify({f:location.pathname,t:to}))}catch(x){}});
 })();`;
+
+// Cloudflare Web Analytics: the site token (from the Cloudflare dashboard, set as CF_BEACON_TOKEN in wrangler.toml) turns the
+// cookie-free beacon on. Empty means no beacon (local previews, or before the token is set).
+let beaconToken = "";
+export const setBeaconToken = (token) => { beaconToken = /^[a-f0-9]{32}$/i.test(token ?? "") ? token : ""; };
+const beacon = () => (beaconToken
+  ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${beaconToken}"}'></script>\n` : "");
 
 // ctx = { lang, page, href(page, lang) }; body is trusted HTML; `extraScript` is added after the shared script.
 export function layout({ ctx, title, body, extraScript = "" }) {
@@ -185,7 +196,7 @@ ${body}
 <footer class="foot"><small>${esc(t("Version"))} ${VERSION} · ${esc(t("Weather data"))}: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), Environment and Climate Change Canada, Hudson Yacht Club, Club de Voile des Laurentides · ${link(t("Data Sources"), href("sources", lang))}</small></footer>
 </main>
 <script>${SCRIPT}${extraScript}</script>
-</body></html>`;
+${beacon()}</body></html>`;
 }
 
 // The live "x minutes ago" counter and the Refresh button (home page only).

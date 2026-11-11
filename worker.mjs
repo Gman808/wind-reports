@@ -6,7 +6,7 @@ import { buildSources, shiftPage } from "./shift-table.mjs";
 import { chart2Opts, chart2Rows, serc, sercCredit } from "./serc-data.mjs";
 import { ecccMinutes, tempestMinutes } from "./history.mjs";
 import { chartRows } from "./logger-core.mjs";
-import { PAGES, ROUTES, aboutPage, otherPage, sourcesPage } from "./pages.mjs";
+import { PAGES, ROUTES, aboutPage, otherPage, setBeaconToken, sourcesPage } from "./pages.mjs";
 
 export { WindLogger } from "./logger.mjs";
 
@@ -46,7 +46,33 @@ async function sendEmail(env, c) {
   console.log(res.ok ? "Email sent." : `Email failed: HTTP ${res.status} ${await res.text()}`);
 }
 
-const LOG_PAGES = { "/wind-log": "en", "/fr/journal-du-vent": "fr" };
+// Visit counts in Workers Analytics Engine (binding ANALYTICS). No cookies and no IP addresses are stored: just the page, the
+// language, the visitor's country/region/city (from Cloudflare), the referring site's host, and mobile or desktop.
+// Query it with SQL, e.g.  SELECT blob2 AS page, SUM(_sample_interval) AS views FROM wind_reports WHERE blob1 = 'view' GROUP BY page
+const track = (env, data) => { try { env.ANALYTICS?.writeDataPoint(data); } catch { /* analytics must never break a page */ } };
+const hostOf = (u) => { try { return new URL(u).hostname; } catch { return ""; } };
+
+function trackView(env, request, route) {
+  const cf = request.cf ?? {};
+  track(env, {
+    indexes: [route.page],
+    blobs: ["view", new URL(request.url).pathname, route.lang, cf.country ?? "", cf.region ?? "", cf.city ?? "",
+      hostOf(request.headers.get("referer") ?? ""), /Mobi/i.test(request.headers.get("user-agent") ?? "") ? "mobile" : "desktop"],
+    doubles: [1],
+  });
+}
+
+// POST /a  { f: page the visitor was on, t: where they went (a page path, or the host of an outside link) }
+async function trackClick(request, env) {
+  try {
+    const { f, t } = JSON.parse((await request.text()).slice(0, 500));
+    const cf = request.cf ?? {};
+    track(env, { indexes: ["click"], blobs: ["click", String(f).slice(0, 120), String(t).slice(0, 120), cf.country ?? ""], doubles: [1] });
+  } catch { /* ignore malformed beacons */ }
+  return new Response(null, { status: 204 });
+}
+
+const LOG_PAGES ={ "/wind-log": "en", "/fr/journal-du-vent": "fr" };
 const logOpts = (lang) => ({
   title: lang === "fr" ? "Journal du vent Tempest" : "Tempest Wind Log",
   intro: lang === "fr"
@@ -78,6 +104,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const { pathname } = url;
+    setBeaconToken(env.CF_BEACON_TOKEN);
+    if (pathname === "/a" && request.method === "POST") return trackClick(request, env);
     if (pathname.startsWith("/api/logger/")) return loggerApi(request, env, url);
     if (LOG_PAGES[pathname]) {
       const lang = LOG_PAGES[pathname];
@@ -87,6 +115,7 @@ export default {
     }
     const route = ROUTES[pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname];
     if (!route) return new Response("Not found", { status: 404 });
+    trackView(env, request, route);
     const ctx = { ...route, href };
     const headers = { "content-type": "text/html; charset=utf-8" };
 

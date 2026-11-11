@@ -23,5 +23,13 @@ class_name = "WindLogger"
 tag = "v1"
 new_sqlite_classes = ["WindLogger"]
 
+# Visit and click counts (see worker.mjs). The dataset is created on the first write.
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "wind_reports"
+
 [vars]
 LOGGER_STATION_ID = "59196"
+# Cloudflare Web Analytics site token (dash.cloudflare.com > Analytics & Logs > Web Analytics > Add a site > JS snippet:
+# the 32-character value after "token"). It is public (it appears in the page), so it can live here. Empty = beacon off.
+CF_BEACON_TOKEN = ""
