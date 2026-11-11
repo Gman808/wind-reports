@@ -35,6 +35,7 @@ a{color:var(--accent)}
 header.top{max-width:780px;margin:0 auto;padding:.75rem 16px;display:flex;align-items:center;gap:.75rem;position:relative}
 .site-title{flex:1;margin:0;font-size:1.35rem;line-height:1.25}
 .site-title a{color:inherit;text-decoration:none}
+.logo{height:2.75rem;width:auto;flex:none}
 .btn,.icon-btn{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;cursor:pointer;min-height:2.5rem}
 .btn{padding:.35rem .9rem}.btn:hover,.icon-btn:hover{background:var(--hover)}
 .icon-btn{min-width:2.5rem;padding:0 .5rem;font-weight:700}
@@ -90,6 +91,7 @@ tbody tr:not(.band):not(.now):hover{--cell:var(--hover)}
   html[lang=fr]{--timecol:7.25rem}
   .timeline tbody tr.now td:first-child{white-space:normal;line-height:1.25}
   .site-title{font-size:1.1rem}
+  .logo{height:2rem}
   th,td{padding:.35rem .5rem;font-size:.9rem}
   .timeline{scroll-snap-type:x mandatory;scroll-padding-left:var(--timecol)}
   .timeline thead tr:first-child th:not(:first-child){scroll-snap-align:start}
@@ -108,6 +110,22 @@ tbody tr:not(.band):not(.now):hover{--cell:var(--hover)}
     --now:#4a4012;--muted:#aab2bb;--accent:#7db7f5}
   .menu .lang span{color:#0b1b2b}
 }`;
+
+// The logo (version 14): two mountains, two J/22 sailboats, wind and wave lines. Decorative: the site title beside it names the site.
+const LOGO = `<svg class="logo" viewBox="160 40 386 238" aria-hidden="true" focusable="false">
+<g fill="none" stroke="#7db7f5" stroke-width="6" stroke-linecap="round">
+<path d="M168 56 Q193 38 218 56 T268 56M168 78 Q193 60 218 78 T268 78M438 56 Q463 74 488 56 T538 56M438 78 Q463 96 488 78 T538 78"/>
+<path d="M168 236 Q193 218 218 236 T268 236M438 236 Q463 254 488 236 T538 236"/>
+<path d="M168 258 Q194.4 240 220.9 258 T273.7 258 T326.6 258 T379.4 258 T432.3 258 T485.1 258 T538 258"/>
+</g>
+<polygon points="168,205 318,65 468,205" fill="#0b5cad"/><polygon points="238,205 388,65 538,205" fill="#0b5cad"/>
+<g transform="translate(60,-10)"><path d="M214 224 L330 220 L316 238 L214 238 Z" fill="#1b3a5c"/>
+<path d="M285 126 Q270 180 228 219 H285 Z M290 148 Q312 188 322 218 H290 Z" fill="#fff" stroke="#1b3a5c" stroke-width="2" stroke-linejoin="round"/>
+<path d="M287 126 V224" stroke="#1b3a5c" stroke-width="3" stroke-linecap="round"/></g>
+<g transform="translate(105,-4)"><path d="M214 224 L330 220 L316 238 L214 238 Z" fill="#1b3a5c"/>
+<path d="M285 126 Q270 180 228 219 H285 Z M290 148 Q312 188 322 218 H290 Z" fill="#fff" stroke="#1b3a5c" stroke-width="2" stroke-linejoin="round"/>
+<path d="M287 126 V224" stroke="#1b3a5c" stroke-width="3" stroke-linecap="round"/></g>
+</svg>`;
 
 // Runs in the <head> so the saved text size is applied before the page is drawn (no flash).
 const EARLY = `try{var f=localStorage.getItem("fs");if(f)document.documentElement.style.fontSize=f+"%"}catch(e){}`;
@@ -159,6 +177,7 @@ ${link(t("Data Sources"), href("sources", lang))}
 ${link(t("Other Wind Sites"), href("other", lang))}
 </nav></details>
 <h1 class="site-title"><a href="${esc(home)}">${esc(siteTitle)}</a></h1>
+${LOGO}
 <div class="fontbtns"><button id="font-down" class="icon-btn" type="button" aria-label="${esc(t("Smaller text"))}" title="${esc(t("Smaller text"))}">A−</button><button id="font-up" class="icon-btn" type="button" aria-label="${esc(t("Larger text"))}" title="${esc(t("Larger text"))}">A+</button></div>
 </header>
 <main class="wrap">
