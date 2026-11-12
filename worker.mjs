@@ -6,6 +6,7 @@ import { buildSources, shiftPage } from "./shift-table.mjs";
 import { chart2Opts, chart2Rows, serc, sercCredit } from "./serc-data.mjs";
 import { ecccMinutes, tempestMinutes } from "./history.mjs";
 import { chartRows } from "./logger-core.mjs";
+import { contactPage, handleContact } from "./contact.mjs";
 import { PAGES, ROUTES, aboutPage, otherPage, setBeaconToken, sourcesPage } from "./pages.mjs";
 
 export { WindLogger } from "./logger.mjs";
@@ -106,6 +107,13 @@ export default {
     const { pathname } = url;
     setBeaconToken(env.CF_BEACON_TOKEN);
     if (pathname === "/a" && request.method === "POST") return trackClick(request, env);
+    if (request.method === "POST" && ROUTES[pathname]?.page === "contact") {
+      const { status } = await handleContact(request, env, url.origin);
+      if ((request.headers.get("accept") ?? "").includes("json")) {
+        return new Response(JSON.stringify({ status }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+      }
+      return new Response(contactPage({ ...ROUTES[pathname], href }, status), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    }
     if (pathname.startsWith("/api/logger/")) return loggerApi(request, env, url);
     if (LOG_PAGES[pathname]) {
       const lang = LOG_PAGES[pathname];
@@ -138,7 +146,7 @@ export default {
     }
     // About and Data Sources are fixed text: no weather data needed.
     if (route.page !== "home" && route.page !== "recent") {
-      return new Response(({ about: aboutPage, sources: sourcesPage, other: otherPage })[route.page](ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });
+      return new Response(({ about: aboutPage, sources: sourcesPage, other: otherPage, contact: contactPage })[route.page](ctx), { headers: { ...headers, "cache-control": "public, max-age=300" } });
     }
     if (!recent.c || Date.now() - recent.at > REUSE_MS) {
       const store = kvStore(env.WEATHER);

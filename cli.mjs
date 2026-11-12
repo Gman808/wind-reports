@@ -7,6 +7,7 @@ import { chartPage } from "./chart.mjs";
 import { buildSources, shiftPage } from "./shift-table.mjs";
 import { chart2Opts, chart2Rows, serc, sercCredit } from "./serc-data.mjs";
 import { ecccMinutes, tempestMinutes } from "./history.mjs";
+import { contactPage } from "./contact.mjs";
 import { aboutPage, otherPage, sourcesPage } from "./pages.mjs";
 
 const OUT = new URL("./site/", import.meta.url);
@@ -21,6 +22,7 @@ const FILES = {
   chart2: { en: "wind-chart-2.html", fr: "graphique-du-vent-2.html" },
   shifts: { en: "wind-shifts.html", fr: "changements-de-vent.html" },
   recent: { en: "recent-wind.html", fr: "vent-recent.html" },
+  contact: { en: "contact.html", fr: "nous-joindre.html" },
 };
 const href = (page, lang) => FILES[page][lang];
 
@@ -65,6 +67,7 @@ for (const lang of ["en", "fr"]) {
   await writeFile(new URL(FILES.home[lang], OUT), renderHome(c, ctx("home")));
   await writeFile(new URL(FILES.recent[lang], OUT), renderRecent(c, ctx("recent")));
   await writeFile(new URL(FILES.about[lang], OUT), aboutPage(ctx("about")));
+  await writeFile(new URL(FILES.contact[lang], OUT), contactPage(ctx("contact")));
   await writeFile(new URL(FILES.sources[lang], OUT), sourcesPage(ctx("sources")));
   await writeFile(new URL(FILES.other[lang], OUT), otherPage(ctx("other")));
   await writeFile(new URL(FILES.chart[lang], OUT), chartPage(ctx("chart"), minutes));

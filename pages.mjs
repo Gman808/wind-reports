@@ -16,6 +16,7 @@ export const PAGES = {
   chart2: { en: "/wind-chart-2", fr: "/fr/graphique-du-vent-2" },
   shifts: { en: "/wind-shifts", fr: "/fr/changements-de-vent" },
   recent: { en: "/recent-wind", fr: "/fr/vent-recent" },
+  contact: { en: "/contact", fr: "/fr/nous-joindre" },
 };
 export const ROUTES = Object.fromEntries(
   Object.entries(PAGES).flatMap(([page, langs]) => Object.entries(langs).map(([lang, path]) => [path, { page, lang }])),
@@ -177,6 +178,7 @@ ${link(t("Wind Chart 2"), href("chart2", lang))}
 ${link(t("Wind Shift Table"), href("shifts", lang))}
 ${link(t("Data Sources"), href("sources", lang))}
 ${link(t("Other Wind Sites"), href("other", lang))}
+${link(t("Contact"), href("contact", lang))}
 </nav></details>
 <h1 class="site-title"><a href="${esc(home)}">${esc(siteTitle)}</a></h1>
 ${LOGO}
