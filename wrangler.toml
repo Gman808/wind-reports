@@ -2,6 +2,10 @@ name = "wind-reports"
 main = "worker.mjs"
 compatibility_date = "2026-11-01"
 
+# Static files (logo, favicon, social-sharing image) are served from public/ before the Worker runs.
+[assets]
+directory = "./public"
+
 # Runs the Worker's scheduled() four times an hour, two minutes before :00/:15/:30/:45. Cron is in UTC, which doesn't matter here.
 [triggers]
 crons = ["13,28,43,58 * * * *"]

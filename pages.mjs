@@ -1,7 +1,9 @@
 // Page shell shared by every page (header, menu, text-size buttons, styles, footer) and the two text pages
 // (About, Data Sources), each in English and French.
 import { AGE_TEXT, setLang, t } from "./i18n.mjs";
+import { logoSvg } from "./logo.mjs";
 
+const SITE_URL = "https://wind-reports.hudson-weather.workers.dev"; // for the social-sharing image (needs an absolute URL)
 export const VERSION = "1.6"; // see CHANGELOG.md; each released version is tagged v<version> in git
 
 // Where each page lives. Worker URLs here; cli.mjs maps the same pages to file names for a local preview.
@@ -111,21 +113,8 @@ tbody tr:not(.band):not(.now):hover{--cell:var(--hover)}
   .menu .lang span{color:#0b1b2b}
 }`;
 
-// The logo (version 14): two mountains, two J/22 sailboats, wind and wave lines. Decorative: the site title beside it names the site.
-const LOGO = `<svg class="logo" viewBox="160 40 386 238" aria-hidden="true" focusable="false">
-<g fill="none" stroke="#7db7f5" stroke-width="6" stroke-linecap="round">
-<path d="M168 56 Q193 38 218 56 T268 56M168 78 Q193 60 218 78 T268 78M438 56 Q463 74 488 56 T538 56M438 78 Q463 96 488 78 T538 78"/>
-<path d="M168 236 Q193 218 218 236 T268 236M438 236 Q463 254 488 236 T538 236"/>
-<path d="M168 258 Q194.4 240 220.9 258 T273.7 258 T326.6 258 T379.4 258 T432.3 258 T485.1 258 T538 258"/>
-</g>
-<polygon points="168,205 318,65 468,205" fill="#0b5cad"/><polygon points="238,205 388,65 538,205" fill="#0b5cad"/>
-<g transform="translate(60,-10)"><path d="M214 224 L330 220 L316 238 L214 238 Z" fill="#1b3a5c"/>
-<path d="M285 126 Q270 180 228 219 H285 Z M290 148 Q312 188 322 218 H290 Z" fill="#fff" stroke="#1b3a5c" stroke-width="2" stroke-linejoin="round"/>
-<path d="M287 126 V224" stroke="#1b3a5c" stroke-width="3" stroke-linecap="round"/></g>
-<g transform="translate(105,-4)"><path d="M214 224 L330 220 L316 238 L214 238 Z" fill="#1b3a5c"/>
-<path d="M285 126 Q270 180 228 219 H285 Z M290 148 Q312 188 322 218 H290 Z" fill="#fff" stroke="#1b3a5c" stroke-width="2" stroke-linejoin="round"/>
-<path d="M287 126 V224" stroke="#1b3a5c" stroke-width="3" stroke-linecap="round"/></g>
-</svg>`;
+// The logo (see logo.mjs). Decorative: the site title beside it names the site.
+const LOGO = logoSvg('class="logo" aria-hidden="true" focusable="false"');
 
 // Runs in the <head> so the saved text size is applied before the page is drawn (no flash).
 const EARLY = `try{var f=localStorage.getItem("fs");if(f)document.documentElement.style.fontSize=f+"%"}catch(e){}`;
@@ -170,6 +159,8 @@ export function layout({ ctx, title, body, extraScript = "" }) {
   return `<!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title ? `${title} – ${siteTitle}` : siteTitle)}</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website"><meta property="og:title" content="${esc(siteTitle)}"><meta property="og:image" content="${SITE_URL}/logo.png"><meta name="twitter:card" content="summary_large_image">
 <script>${EARLY}</script>
 <style>${CSS}
 </style>
