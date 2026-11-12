@@ -32,4 +32,4 @@ dataset = "wind_reports"
 LOGGER_STATION_ID = "59196"
 # Cloudflare Web Analytics site token (dash.cloudflare.com > Analytics & Logs > Web Analytics > Add a site > JS snippet:
 # the 32-character value after "token"). It is public (it appears in the page), so it can live here. Empty = beacon off.
-CF_BEACON_TOKEN = ""
+CF_BEACON_TOKEN = "56a9084418fd4efc891152e3f6f67cf1"
