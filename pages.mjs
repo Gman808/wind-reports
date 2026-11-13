@@ -53,6 +53,7 @@ header.top{max-width:780px;margin:0 auto;padding:.75rem 16px;display:flex;align-
 .menu nav{position:absolute;left:16px;top:calc(100% - .1rem);z-index:30;min-width:16rem;background:var(--bg);border:1px solid var(--line-strong);
   border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);padding:.5rem;display:grid;gap:.15rem}
 .menu nav a{display:block;padding:.6rem .75rem;border-radius:6px;color:var(--text);text-decoration:none}
+.menu nav a.grey{color:var(--muted)}
 .menu nav a:hover{background:var(--hover)}
 .menu .lang{display:flex;gap:.4rem;padding-bottom:.5rem;margin-bottom:.35rem;border-bottom:1px solid var(--line)}
 .menu .lang a,.menu .lang span{flex:1;text-align:center;padding:.5rem;border:1px solid var(--line-strong);border-radius:6px}
@@ -152,7 +153,7 @@ export function layout({ ctx, title, body, extraScript = "" }) {
   const other = lang === "fr" ? "en" : "fr";
   const home = href("home", lang);
   const siteTitle = t("Lake of Two Mountains Wind Report");
-  const link = (label, to) => `<a href="${esc(to)}">${esc(label)}</a>`;
+  const link = (label, to, cls) => `<a href="${esc(to)}"${cls ? ` class="${cls}"` : ""}>${esc(label)}</a>`;
   const langRow = ["fr", "en"].map((l) => {
     const name = l === "fr" ? "Français" : "English";
     return l === lang ? `<span aria-current="true" lang="${l}">${name}</span>` : `<a href="${esc(href(page, l))}" lang="${l}" hreflang="${l}">${name}</a>`;
@@ -170,15 +171,16 @@ export function layout({ ctx, title, body, extraScript = "" }) {
 <details class="menu"><summary aria-label="${esc(t("Menu"))}"><span></span><span></span><span></span></summary>
 <nav aria-label="${esc(t("Menu"))}">
 <div class="lang" role="group" aria-label="${esc(t("Language"))}">${langRow}</div>
-${link(t("About"), href("about", lang))}
-${link(t("Recent Wind Details"), `${href("recent", lang)}#details`)}
-${link(t("Wind Timeline"), `${href("recent", lang)}#timeline`)}
+${link(t("Home"), href("home", lang), "grey")}
 ${link(t("Wind Chart"), href("chart", lang))}
 ${link(t("Wind Chart 2"), href("chart2", lang))}
 ${link(t("Wind Shift Table"), href("shifts", lang))}
-${link(t("Data Sources"), href("sources", lang))}
-${link(t("Other Wind Sites"), href("other", lang))}
-${link(t("Contact"), href("contact", lang))}
+${link(t("Wind Timeline"), `${href("recent", lang)}#timeline`)}
+${link(t("Recent Wind Details"), `${href("recent", lang)}#details`)}
+${link(t("Other Wind Sites"), href("other", lang), "grey")}
+${link(t("Data Sources"), href("sources", lang), "grey")}
+${link(t("About"), href("about", lang), "grey")}
+${link(t("Contact"), href("contact", lang), "grey")}
 </nav></details>
 <h1 class="site-title"><a href="${esc(home)}">${esc(siteTitle)}</a></h1>
 ${LOGO}

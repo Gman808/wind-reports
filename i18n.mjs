@@ -20,6 +20,7 @@ const FR = {
   "Data Sources": "Sources des données",
   "Other Wind Sites": "Autres sites de vent",
   "Contact": "Nous joindre",
+  "Home": "Accueil",
   "Wind Chart": "Graphique du vent",
   "Wind Chart 2": "Graphique du vent 2",
   "Lulls": "Accalmies",
